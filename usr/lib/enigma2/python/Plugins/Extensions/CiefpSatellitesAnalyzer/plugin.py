@@ -12,7 +12,7 @@ def main(session, **kwargs):
 def Plugins(**kwargs):
     return PluginDescriptor(
         name="CiefpSatelliteAnalyzer",
-        description=f"Prikaži sve informacije o trenutnom kanalu (Version {PLUGIN_VERSION})",
+        description=f"Show all information about the current channel (Version {PLUGIN_VERSION})",
         where=PluginDescriptor.WHERE_PLUGINMENU,
         icon="satellite.png",
         fnc=main,
