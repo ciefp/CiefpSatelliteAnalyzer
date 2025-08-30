@@ -1,34 +1,134 @@
 # CiefpSatelliteAnalyzer.py
-from enigma import eServiceCenter, eServiceReference, iServiceInformation, eTimer
+from enigma import eServiceCenter, eServiceReference, iServiceInformation, eTimer, eConsoleAppContainer
 from Tools.Directories import fileExists, resolveFilename, SCOPE_PLUGINS
 from Screens.Screen import Screen
+from Screens.ChoiceBox import ChoiceBox
+from Screens.MessageBox import MessageBox
 from Components.Pixmap import Pixmap
 from Components.Label import Label
 from Components.ScrollLabel import ScrollLabel
 from Components.ActionMap import ActionMap
 from Components.ProgressBar import ProgressBar
+from Components.Button import Button
 import os
 import xml.etree.ElementTree as ET
+import subprocess
+import time
 
+class AstraAnalyzeScreen(Screen):
+    skin = """
+    <screen name="AstraAnalyzeScreen" position="center,center" size="1800,900" title="..:: Astra-SM Analyze Results ::..">
+        <!-- Pozadina -->
+        <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <!-- Pozadina desno -->
+        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background2.png" position="1400,0" size="400,500" />
+        <!-- Rezultati analize -->
+        <widget name="analyze_results" position="20,20" size="1360,880" 
+                font="Console;20" transparent="1" foregroundColor="white" />
+        <!-- Naslov -->
+        <widget source="Title" render="Label" position="1400,550" size="400,50" 
+                font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
+         <!-- Dugmad -->
+        <widget name="key_red" position="1440,650" size="320,40" 
+                backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
+        <widget name="key_green" position="1440,720" size="320,40" 
+                backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
+        <widget name="key_yellow" position="1440,790" size="320,40" 
+                backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" /> 
+    </screen>
+    """
+
+    def __init__(self, session, analyze_output, container, parent):
+        Screen.__init__(self, session)
+        self.analyze_output = analyze_output
+        self.container = container
+        self.parent = parent
+        self["analyze_results"] = ScrollLabel("")
+        self["key_red"] = Button("Back")
+        self["key_green"] = Button("Save to File")
+        self["key_yellow"] = Button("Stop Analysis")
+        self["background2"] = Pixmap()
+        
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
+            {
+                "ok": self.close,
+                "cancel": self.close,
+                "red": self.close,
+                "green": self.saveToFile,
+                "yellow": self.stopAnalysis,
+                "up": self["analyze_results"].pageUp,
+                "down": self["analyze_results"].pageDown,
+            }, -2)
+        
+        self.onLayoutFinish.append(self.showResults)
+
+    def showResults(self):
+        print("[AstraAnalyzeScreen] Showing results")
+        self["analyze_results"].setText("\n".join(self.analyze_output))
+
+    def updateResults(self):
+        print("[AstraAnalyzeScreen] Updating results")
+        self["analyze_results"].setText("\n".join(self.analyze_output))
+
+    def saveToFile(self):
+        print("[AstraAnalyzeScreen] Saving results to file")
+        try:
+            filename = f"/tmp/astra_analyze_{time.strftime('%Y%m%d_%H%M%S')}.log"
+            with open(filename, 'w') as f:
+                f.write("\n".join(self.analyze_output))
+            self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
+        except Exception as e:
+            print(f"[AstraAnalyzeScreen] Error saving file: {str(e)}")
+            self.session.open(MessageBox, f"Error saving file:\n{str(e)}", MessageBox.TYPE_ERROR)
+
+    def stopAnalysis(self):
+        print("[AstraAnalyzeScreen] Initiating stopAnalysis")
+        try:
+            if self.container:
+                print("[AstraAnalyzeScreen] Killing container process")
+                self.container.kill()
+                os.system("killall -9 astra")
+                print("[AstraAnalyzeScreen] Executed killall -9 astra")
+                time.sleep(0.5)
+                if os.system("pidof astra >/dev/null") == 0:
+                    print("[AstraAnalyzeScreen] Warning: astra process still running after kill")
+                else:
+                    print("[AstraAnalyzeScreen] astra process successfully terminated")
+                self.container = None
+            else:
+                print("[AstraAnalyzeScreen] No container to kill")
+            if self.parent:
+                print("[AstraAnalyzeScreen] Calling parent.stopAnalysisCleanup")
+                self.parent.stopAnalysisCleanup()
+            else:
+                print("[AstraAnalyzeScreen] No parent instance available")
+            print("[AstraAnalyzeScreen] Closing screen")
+            self.close()
+        except Exception as e:
+            print(f"[AstraAnalyzeScreen] Error in stopAnalysis: {str(e)}")
+            self.session.open(MessageBox, f"Error stopping analysis: {str(e)}", MessageBox.TYPE_ERROR)
 
 class SatelliteAnalyzer(Screen):
     skin = """
     <screen name="SatelliteAnalyzer" position="center,center" size="1800,900" title="..:: Ciefp Satellite Analyzer ::..">
         <!-- Pozadina desno -->
-        <eLabel position="1400,0" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
-        <!-- Logo (400x400) -->
-        <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1400,0" size="400,400" />
+        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <!-- Logo (400x500) -->
+        <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1400,0" size="400,500" />
         <!-- Naslov -->
-        <widget source="Title" render="Label" position="1400,420" size="400,50" 
+        <widget source="Title" render="Label" position="1400,550" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
         <!-- Vrijeme -->
-        <widget name="time" position="1400,480" size="400,40" 
+        <widget name="time" position="1400,600" size="400,40" 
                 font="Regular;24" halign="center" valign="center" foregroundColor="#BBBBBB" backgroundColor="#0D1B36" />
-        <!-- Dugmad -->
-        <widget name="key_red" position="1440,540" size="320,40" 
-                backgroundColor="red" font="Regular;24" halign="center" valign="center" />
-        <widget name="key_green" position="1440,600" size="320,40" 
-                backgroundColor="green" font="Regular;24" halign="center" valign="center" />
+         <!-- Dugmad -->
+        <widget name="key_red" position="1440,650" size="320,40" 
+                backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
+        <widget name="key_green" position="1440,720" size="320,40" 
+                backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
+        <widget name="key_yellow" position="1440,790" size="320,40" 
+                backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />  
         <!-- LEVO: Osnovni info -->
         <widget name="info_left" position="20,20" size="680,800" 
                 font="Console;24" transparent="1" />
@@ -47,12 +147,13 @@ class SatelliteAnalyzer(Screen):
         Screen.__init__(self, session)
         self["info_left"] = ScrollLabel("")
         self["info_center"] = ScrollLabel("")
+        self["astra_results"] = Label("")
         self["time"] = Label("")
         self["key_red"] = Label("Back")
         self["key_green"] = Label("Update")
+        self["key_yellow"] = Label("Astra Analyze")
         self["background"] = Pixmap()
 
-        # Trake
         self["snr_label"] = Label("SNR:")
         self["snr_bar"] = ProgressBar()
         self["agc_label"] = Label("AGC:")
@@ -64,23 +165,121 @@ class SatelliteAnalyzer(Screen):
                 "cancel": self.close,
                 "red": self.close,
                 "green": self.updateInfo,
+                "yellow": self.startAstraAnalyze,
                 "up": self["info_left"].pageUp,
                 "down": self["info_left"].pageDown,
             }, -2)
 
-        # Tajmer za vreme
         self.time_update_timer = eTimer()
         self.time_update_timer.callback.append(self.updateTime)
         self.time_update_timer.start(1000)
         self.onClose.append(self.time_update_timer.stop)
 
-        # Tajmer za signal
         self.signal_update_timer = eTimer()
         self.signal_update_timer.callback.append(self.updateAllInfo)
         self.signal_update_timer.start(5000)
         self.onClose.append(self.signal_update_timer.stop)
 
         self.onLayoutFinish.append(self.updateInfo)
+
+        self.astra_options = [
+            ("4095 - c:150fff", "t2mi://#t2mi_pid=4095&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4096 - c:151000", "t2mi://#t2mi_pid=4096&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4096 - c:151000 plp2", "t2mi://#t2mi_pid=4096&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4097 - c:151001", "t2mi://#t2mi_pid=4097&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4706 - c:151262", "t2mi://#t2mi_pid=4706&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4716 - c:15126C", "t2mi://#t2mi_pid=4716&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4219 - c:15107B", "t2mi://#t2mi_pid=4219&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4646 - c:151226", "t2mi://#t2mi_pid=4646&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4102 - c:151006", "t2mi://#t2mi_pid=4102&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("4105 - c:151009", "t2mi://#t2mi_pid=4105&t2mi_input=http://127.0.0.1:8001/-----:"),
+            ("Default (no T2MI)", "http://127.0.0.1:8001/-----:")
+        ]
+        self.astra_output = []
+        self.analyzing = False
+        self.astra_analyze_screen = None
+        self.container = None
+
+    def close(self):
+        print("[SatelliteAnalyzer] Initiating close")
+        if self.analyzing:
+            print("[SatelliteAnalyzer] Analysis in progress, showing warning")
+            self.session.open(MessageBox, _("The analysis is in progress, please wait or press the yellow button on the analysis screen to stop!"), MessageBox.TYPE_INFO, timeout=5)
+            return
+        if self.astra_analyze_screen:
+            print("[SatelliteAnalyzer] Closing astra_analyze_screen")
+            self.astra_analyze_screen.close()
+            self.astra_analyze_screen = None
+        if self.container:
+            print("[SatelliteAnalyzer] Killing container in close")
+            self.container.kill()
+            os.system("killall -9 astra")
+            print("[SatelliteAnalyzer] Executed killall -9 astra")
+            time.sleep(0.5)
+            if os.system("pidof astra >/dev/null") == 0:
+                print("[SatelliteAnalyzer] Warning: astra process still running after kill")
+            else:
+                print("[SatelliteAnalyzer] astra process successfully terminated")
+            self.container = None
+        self.resetTunerAndStream()
+        print("[SatelliteAnalyzer] Closing SatelliteAnalyzer screen")
+        Screen.close(self)
+
+    def stopAnalysisCleanup(self):
+        print("[SatelliteAnalyzer] Cleaning up after analysis stopped")
+        try:
+            self.analyzing = False
+            if self.container:
+                print("[SatelliteAnalyzer] Killing container in stopAnalysisCleanup")
+                self.container.kill()
+                os.system("killall -9 astra")
+                print("[SatelliteAnalyzer] Executed killall -9 astra")
+                time.sleep(0.5)
+                if os.system("pidof astra >/dev/null") == 0:
+                    print("[SatelliteAnalyzer] Warning: astra process still running after kill")
+                else:
+                    print("[SatelliteAnalyzer] astra process successfully terminated")
+                self.container = None
+            if self.astra_analyze_screen:
+                print("[SatelliteAnalyzer] Closing astra_analyze_screen in stopAnalysisCleanup")
+                self.astra_analyze_screen.close()
+                self.astra_analyze_screen = None
+            self.resetTunerAndStream()
+        except Exception as e:
+            print(f"[SatelliteAnalyzer] Error in stopAnalysisCleanup: {str(e)}")
+
+    def resetTunerAndStream(self):
+        print("[SatelliteAnalyzer] Resetting tuner and stream resources")
+        try:
+            # Oslobodi tuner
+            resource_manager = eDVBResourceManager.getInstance()
+            if resource_manager:
+                print("[SatelliteAnalyzer] Releasing cached channel")
+                resource_manager.releaseCachedChannel()
+            else:
+                print("[SatelliteAnalyzer] Warning: eDVBResourceManager not available")
+            
+            # Zaustavi aktivni stream
+            self.session.nav.stopService()
+            print("[SatelliteAnalyzer] Stopped current service")
+            
+            # Ponovno pokreni streamrelay ako je dostupan
+            if os.path.exists("/usr/bin/streamrelay"):
+                print("[SatelliteAnalyzer] Restarting streamrelay")
+                os.system("killall -9 streamrelay")
+                time.sleep(0.5)
+                os.system("/usr/bin/streamrelay &")
+                print("[SatelliteAnalyzer] Streamrelay restarted")
+            else:
+                print("[SatelliteAnalyzer] Streamrelay binary not found")
+                
+            # Provjeri stanje e2stream servera
+            if os.system("netstat -tuln | grep :8001 >/dev/null") != 0:
+                print("[SatelliteAnalyzer] Warning: e2stream server (port 8001) not running")
+            else:
+                print("[SatelliteAnalyzer] e2stream server (port 8001) is running")
+        except Exception as e:
+            print(f"[SatelliteAnalyzer] Error in resetTunerAndStream: {str(e)}")
 
     def updateTime(self):
         try:
@@ -116,7 +315,7 @@ class SatelliteAnalyzer(Screen):
             if frontendInfo:
                 try:
                     frontendData = frontendInfo.getAll(True)
-                    print(f"[SatelliteAnalyzer] Sirovi frontend podaci: {frontendData}")
+                    print(f"[SatelliteAnalyzer] Raw frontend data: {frontendData}")
                     quality = frontendData.get("tuner_signal_quality", 0)
                     snr_percent = min(100, quality // 655)
                     snr_db = frontendData.get("tuner_signal_quality_db", 0) / 100.0
@@ -128,11 +327,95 @@ class SatelliteAnalyzer(Screen):
                     tsid = service_info.getInfo(iServiceInformation.sTSID)
                     onid = service_info.getInfo(iServiceInformation.sONID)
                     print(
-                        f"[SatelliteAnalyzer] Frontend podaci: SNR_DB={snr_db}, SNR_PERCENT={snr_percent}, BER={ber}, AGC={agc}, Crypted={is_crypted}, SID={sid}, TSID={tsid}, ONID={onid}")
+                        f"[SatelliteAnalyzer] Frontend data: SNR_DB={snr_db}, SNR_PERCENT={snr_percent}, BER={ber}, AGC={agc}, Crypted={is_crypted}, SID={sid}, TSID={tsid}, ONID={onid}")
                     return snr_db, snr_percent, ber, agc, is_crypted, sid, tsid, onid
                 except Exception as e:
-                    print(f"[SatelliteAnalyzer] Greška pri dohvatanju signala iz frontend-a: {e}")
+                    print(f"[SatelliteAnalyzer] Error retrieving signal from frontend: {e}")
         return 0.0, 0, 0, 0, 0, 0, 0, 0
+
+    def getServiceReference(self):
+        service = self.session.nav.getCurrentService()
+        if service:
+            service_ref = self.session.nav.getCurrentlyPlayingServiceReference()
+            if service_ref:
+                return service_ref.toString()
+        return "N/A"
+
+    def startAstraAnalyze(self):
+        print("[SatelliteAnalyzer] Starting astra analyze")
+        service_ref = self.getServiceReference()
+        print(f"[SatelliteAnalyzer] Service reference: {service_ref}")
+        if service_ref == "N/A":
+            print("[SatelliteAnalyzer] No active service for analysis")
+            self.session.open(MessageBox, _("No active service for analysis!"), MessageBox.TYPE_ERROR)
+            return
+        if not os.path.exists("/usr/bin/astra"):
+            print("[SatelliteAnalyzer] Error: astra-sm not found at /usr/bin/astra")
+            self.session.open(MessageBox, _("Error: astra-sm not found. Please install astra-sm."), MessageBox.TYPE_ERROR)
+            return
+        print("[SatelliteAnalyzer] Opening ChoiceBox for analysis options")
+        self.session.openWithCallback(self.onAnalyzeSelected, ChoiceBox, title=_("Select Analyze Option"), list=self.astra_options)
+
+    def onAnalyzeSelected(self, choice):
+        print("[SatelliteAnalyzer] onAnalyzeSelected called with choice:", choice)
+        if choice:
+            try:
+                self.analyzing = True
+                self.astra_output = []
+                self.container = eConsoleAppContainer()
+                print("[SatelliteAnalyzer] Created eConsoleAppContainer")
+                self.astra_analyze_screen = self.session.open(AstraAnalyzeScreen, self.astra_output, self.container, self)
+                print("[SatelliteAnalyzer] Opened AstraAnalyzeScreen")
+                self.session.open(MessageBox, _("Analysis in progress, wait a few seconds or press the yellow button to stop."), MessageBox.TYPE_INFO, timeout=5)
+                cmd_template = choice[1]
+                service_ref = self.getServiceReference()
+                if service_ref == "N/A":
+                    print("[SatelliteAnalyzer] Error: Service reference became invalid")
+                    self.session.open(MessageBox, _("Error: Service reference lost during analysis."), MessageBox.TYPE_ERROR)
+                    self.stopAnalysisCleanup()
+                    return
+                cmd = cmd_template.replace("-----:", f"{service_ref}:")
+                cmd = f'astra --analyze "{cmd}"'
+                print(f"[SatelliteAnalyzer] Executing command: {cmd}")
+                self.container.appClosed.append(self.onAnalyzeFinished)
+                self.container.dataAvail.append(self.onDataAvail)
+                self.container.execute(cmd)
+                print("[SatelliteAnalyzer] Command executed")
+            except Exception as e:
+                print(f"[SatelliteAnalyzer] Error in onAnalyzeSelected: {str(e)}")
+                self.session.open(MessageBox, f"Error starting analysis: {str(e)}", MessageBox.TYPE_ERROR)
+                self.stopAnalysisCleanup()
+        else:
+            print("[SatelliteAnalyzer] No choice selected, cancelling analysis")
+
+    def onDataAvail(self, data):
+        try:
+            data = data.decode('utf-8')
+            for line in data.splitlines():
+                print(f"[AstraData]: {line.strip()}")
+                if "INFO:" in line:
+                    self.astra_output.append(line.strip())
+                    if self.astra_analyze_screen:
+                        self.astra_analyze_screen.updateResults()
+        except Exception as e:
+            print(f"[SatelliteAnalyzer] Error in onDataAvail: {str(e)}")
+
+    def onAnalyzeFinished(self, retval):
+        print(f"[SatelliteAnalyzer] Analysis finished, return code: {retval}, output: {self.astra_output}")
+        self.analyzing = False
+        if not self.astra_output and self.astra_analyze_screen:
+            self.astra_analyze_screen.updateResults()
+            self.session.open(MessageBox, _("No results or analysis error."), MessageBox.TYPE_ERROR)
+        self.container = None
+        # Dodatno čišćenje procesa
+        os.system("killall -9 astra")
+        print("[SatelliteAnalyzer] Executed killall -9 astra in onAnalyzeFinished")
+        time.sleep(0.5)
+        if os.system("pidof astra >/dev/null") == 0:
+            print("[SatelliteAnalyzer] Warning: astra process still running after onAnalyzeFinished")
+        else:
+            print("[SatelliteAnalyzer] astra process successfully terminated in onAnalyzeFinished")
+        self.resetTunerAndStream()
 
     def getCaName(self, caid):
         known = {
@@ -203,7 +486,6 @@ class SatelliteAnalyzer(Screen):
             0x0664: "Irdeto",
             0x06EE: "Irdeto",
             0x06E2: "Irdeto",
-            0x0664: "Irdeto",
             0x06F8: "Irdeto",
             0x0604: "Irdeto",
             0x069B: "Irdeto",
@@ -219,10 +501,10 @@ class SatelliteAnalyzer(Screen):
         return known.get(caid, None)
 
     def getFec(self, fec):
-        return {0:"Auto",1:"1/2",2:"2/3",3:"3/4",4:"4/5",5:"5/6",7:"7/8",8:"8/9",9:"9/10"}.get(fec, "N/A")
+        return {0: "Auto", 1: "1/2", 2: "2/3", 3: "3/4", 4: "4/5", 5: "5/6", 7: "7/8", 8: "8/9", 9: "9/10"}.get(fec, "N/A")
 
     def getModulation(self, mod):
-        return {0:"Auto",1:"QPSK",2:"8PSK",3:"64QAM",4:"16APSK",5:"32APSK"}.get(mod, "N/A")
+        return {0: "Auto", 1: "QPSK", 2: "8PSK", 3: "64QAM", 4: "16APSK", 5: "32APSK"}.get(mod, "N/A")
 
     def getSystem(self, tuner_type, sys):
         if tuner_type == "DVB-S":
@@ -235,11 +517,10 @@ class SatelliteAnalyzer(Screen):
             return "N/A"
 
     def getPolarization(self, pol):
-        return {0:"H",1:"V",2:"L",3:"R"}.get(pol, "N/A")
+        return {0: "H", 1: "V", 2: "L", 3: "R"}.get(pol, "N/A")
 
-    # Nove metode za DVB-T specifične parametre
     def getBandwidth(self, bw):
-        return {6000000: "6 MHz", 7000000: "7 MHz", 8000000: "8 MHz"}.get(bw, f"{bw/1000000} MHz")
+        return {6000000: "6 MHz", 7000000: "7 MHz", 8000000: "8 MHz"}.get(bw, f"{bw / 1000000} MHz")
 
     def getConstellation(self, constellation):
         return {0: "QPSK", 1: "16QAM", 2: "64QAM", 3: "256QAM"}.get(constellation, "N/A")
@@ -291,15 +572,6 @@ class SatelliteAnalyzer(Screen):
         if not info:
             return "❌ Ne mogu dohvatiti info objekat."
 
-        try:
-            name = info.getName() or "N/A"
-        except:
-            name = "N/A"
-        try:
-            provider = info.getInfoString(iServiceInformation.sProvider) or "N/A"
-        except:
-            provider = "N/A"
-
         frontendInfo = service.frontendInfo()
         frontendData = frontendInfo and frontendInfo.getAll(True)
         if not frontendData:
@@ -342,7 +614,7 @@ class SatelliteAnalyzer(Screen):
             system_str = "N/A"
         try:
             pls_mode = frontendData.get("pls_mode", -1)
-            pls_mode_str = {0:"Root",1:"Gold",2:"Combo"}.get(pls_mode, str(pls_mode))
+            pls_mode_str = {0: "Root", 1: "Gold", 2: "Combo"}.get(pls_mode, str(pls_mode))
         except:
             pls_mode_str = "N/A"
         try:
@@ -362,32 +634,40 @@ class SatelliteAnalyzer(Screen):
             t2mi_pid_str = "N/A"
 
         try:
-            vpid = info.getInfo(iServiceInformation.sVideoPID)
-            vpid_str = f"0x{vpid:X}" if vpid != -1 else "Nema"
+            name = info.getName() or "N/A"
         except:
-            vpid_str = "Nema"
+            name = "N/A"
+        try:
+            provider = info.getInfoString(iServiceInformation.sProvider) or "N/A"
+        except:
+            provider = "N/A"
+
+        try:
+            vpid = info.getInfo(iServiceInformation.sVideoPID)
+            vpid_str = f"0x{vpid:X}" if vpid != -1 else "N/A"
+        except:
+            vpid_str = "N/A"
         try:
             apid = info.getInfo(iServiceInformation.sAudioPID)
-            apid_str = f"0x{apid:X}" if apid != -1 else "Nema"
+            apid_str = f"0x{apid:X}" if apid != -1 else "N/A"
         except:
-            apid_str = "Nema"
+            apid_str = "N/A"
         try:
             pcrpid = info.getInfo(iServiceInformation.sPCRPID)
-            pcr_str = f"0x{pcrpid:X}" if pcrpid != -1 else "Nema"
+            pcr_str = f"0x{pcrpid:X}" if pcrpid != -1 else "N/A"
         except:
-            pcr_str = "Nema"
+            pcr_str = "N/A"
         try:
             pmtpid = info.getInfo(iServiceInformation.sPMTPID)
-            pmt_str = f"0x{pmtpid:X}" if pmtpid != -1 else "Nema"
+            pmt_str = f"0x{pmtpid:X}" if pmtpid != -1 else "N/A"
         except:
-            pmt_str = "Nema"
+            pmt_str = "N/A"
         try:
             txt_pid = info.getInfo(iServiceInformation.sTXTPID)
-            txt_str = f"0x{txt_pid:X}" if txt_pid != -1 else "Nema"
+            txt_str = f"0x{txt_pid:X}" if txt_pid != -1 else "N/A"
         except:
-            txt_str = "Nema"
+            txt_str = "N/A"
 
-        # DVB-T specifični parametri
         dvbt_params = ""
         if tuner_type in ["DVB-T", "DVB-T2"]:
             try:
@@ -425,37 +705,36 @@ class SatelliteAnalyzer(Screen):
                 hierarchy_str = self.getHierarchy(hierarchy)
             except:
                 hierarchy_str = "N/A"
-
             dvbt_params = f"""
-   Bandwidth: {bandwidth_str}
-   Code Rate HP: {code_rate_hp_str}
-   Code Rate LP: {code_rate_lp_str}
-   Constellation: {constellation_str}
-   Transmission Mode: {transmission_mode_str}
-   Guard Interval: {guard_interval_str}
-   Hierarchy: {hierarchy_str}
+       Bandwidth: {bandwidth_str}
+       Code Rate HP: {code_rate_hp_str}
+       Code Rate LP: {code_rate_lp_str}
+       Constellation: {constellation_str}
+       Transmission Mode: {transmission_mode_str}
+       Guard Interval: {guard_interval_str}
+       Hierarchy: {hierarchy_str}
             """
 
         text = f"""
-   Channel: {name}
-   Provider: {provider}
-   Satellite: {sat_name}
-   Frequency: {freq} MHz
-   Polarization: {pol_str}
-   Symbol Rate: {sr}k
-   FEC: {fec_str}
-   Modulation: {mod_str}
-   SYSTEM: {system_str}
-   PLS MODE: {pls_mode_str}
-   PLS CODE: {pls_code_str}
-   T2MI PLP ID: {t2mi_plp_str}
-   T2MI PID: {t2mi_pid_str}
-{dvbt_params}
-   VIDEO PID: {vpid_str}
-   AUDIO PID: {apid_str}
-   PCR PID: {pcr_str}
-   PMT PID: {pmt_str}
-   TELETEXT PID: {txt_str}
+       Channel: {name}
+       Provider: {provider}
+       Satellite: {sat_name}
+       Frequency: {freq} MHz
+       Polarization: {pol_str}
+       Symbol Rate: {sr}k
+       FEC: {fec_str}
+       Modulation: {mod_str}
+       SYSTEM: {system_str}
+       PLS MODE: {pls_mode_str}
+       PLS CODE: {pls_code_str}
+       T2MI PLP ID: {t2mi_plp_str}
+       T2MI PID: {t2mi_pid_str}
+    {dvbt_params}
+       VIDEO PID: {vpid_str}
+       AUDIO PID: {apid_str}
+       PCR PID: {pcr_str}
+       PMT PID: {pmt_str}
+       TELETEXT PID: {txt_str}
         """.strip()
         return text
 
@@ -466,6 +745,8 @@ class SatelliteAnalyzer(Screen):
         info = service.info()
         if not info:
             return "Cannot retrieve info object."
+
+        service_ref = self.getServiceReference()
 
         try:
             caids = info.getInfoObject(iServiceInformation.sCAIDs) or []
@@ -500,7 +781,6 @@ class SatelliteAnalyzer(Screen):
         else:
             caid_list.append("No encryption")
 
-        # --- SIGNAL INFO ---
         frontendInfo = service.frontendInfo()
         frontendData = frontendInfo and frontendInfo.getAll(True)
         try:
@@ -511,7 +791,6 @@ class SatelliteAnalyzer(Screen):
         except:
             snr_db, snr_percent, ber, agc = 0.0, 0, 0, 0
 
-        # --- SI/TS/ONID ---
         try:
             sid = info.getInfo(iServiceInformation.sSID)
         except:
@@ -538,6 +817,9 @@ class SatelliteAnalyzer(Screen):
             "SI / TS / ONID:",
             f"   SID: 0x{sid:04X}",
             f"   TSID: 0x{tsid:04X}",
-            f"   ONID: 0x{onid:04X}"
+            f"   ONID: 0x{onid:04X}",
+            "",
+            "Service Reference:",
+            f"   {service_ref}"
         ]
         return "\n".join(right_text)

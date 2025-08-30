@@ -4,7 +4,7 @@ from Screens.MessageBox import MessageBox
 from Plugins.Extensions.CiefpSatelliteAnalyzer.CiefpSatelliteAnalyzer import SatelliteAnalyzer
 
 
-PLUGIN_VERSION = "1.0"
+PLUGIN_VERSION = "1.1"
 
 def main(session, **kwargs):
     session.open(SatelliteAnalyzer)
