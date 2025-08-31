@@ -39,11 +39,12 @@ class AstraAnalyzeScreen(Screen):
     </screen>
     """
 
-    def __init__(self, session, analyze_output, container, parent):
+    def __init__(self, session, analyze_output, container, parent, pid=None):
         Screen.__init__(self, session)
         self.analyze_output = analyze_output
         self.container = container
         self.parent = parent
+        self.pid = pid  # Store the PID for use in saveToFile
         self["analyze_results"] = ScrollLabel("")
         self["key_red"] = Button("Back")
         self["key_green"] = Button("Save to File")
@@ -74,7 +75,10 @@ class AstraAnalyzeScreen(Screen):
     def saveToFile(self):
         print("[AstraAnalyzeScreen] Saving results to file")
         try:
-            filename = f"/tmp/astra_analyze_{time.strftime('%Y%m%d_%H%M%S')}.log"
+            dir_path = "/tmp/CiefpSatelliteAnalyzer"
+            os.makedirs(dir_path, exist_ok=True)
+            pid_str = f"pid{self.pid}" if self.pid else "no_pid"
+            filename = f"{dir_path}/astra_analyze_{time.strftime('%Y%m%d')}_{pid_str}.log"
             with open(filename, 'w') as f:
                 f.write("\n".join(self.analyze_output))
             self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
@@ -88,11 +92,11 @@ class AstraAnalyzeScreen(Screen):
             if self.container:
                 print("[AstraAnalyzeScreen] Killing container process")
                 self.container.kill()
-                os.system("killall -9 astra")
-                print("[AstraAnalyzeScreen] Executed killall -9 astra")
+                os.system("systemctl stop astra-sm")
+                print("[AstraAnalyzeScreen] Executed systemctl stop astra-sm")
                 time.sleep(0.5)
                 if os.system("pidof astra >/dev/null") == 0:
-                    print("[AstraAnalyzeScreen] Warning: astra process still running after kill")
+                    print("[AstraAnalyzeScreen] Warning: astra process still running after stop")
                 else:
                     print("[AstraAnalyzeScreen] astra process successfully terminated")
                 self.container = None
@@ -109,6 +113,104 @@ class AstraAnalyzeScreen(Screen):
             print(f"[AstraAnalyzeScreen] Error in stopAnalysis: {str(e)}")
             self.session.open(MessageBox, f"Error stopping analysis: {str(e)}", MessageBox.TYPE_ERROR)
 
+class AbertisAnalyzeScreen(Screen):
+    skin = """
+    <screen name="AbertisAnalyzeScreen" position="center,center" size="1800,900" title="..:: Abertis Analyze Results ::..">
+        <!-- Pozadina -->
+        <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <!-- Pozadina desno -->
+        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background2.png" position="1400,0" size="400,500" />
+        <!-- Rezultati analize -->
+        <widget name="analyze_results" position="20,20" size="1360,880" 
+                font="Console;20" transparent="1" foregroundColor="white" />
+        <!-- Naslov -->
+        <widget source="Title" render="Label" position="1400,550" size="400,50" 
+                font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
+         <!-- Dugmad -->
+        <widget name="key_red" position="1440,650" size="320,40" 
+                backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
+        <widget name="key_green" position="1440,720" size="320,40" 
+                backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
+        <widget name="key_yellow" position="1440,790" size="320,40" 
+                backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" /> 
+    </screen>
+    """
+
+    def __init__(self, session, analyze_output, container, parent, pid=None):
+        Screen.__init__(self, session)
+        self.analyze_output = analyze_output
+        self.container = container
+        self.parent = parent
+        self.pid = pid  # Store the PID for use in saveToFile
+        self["analyze_results"] = ScrollLabel("")
+        self["key_red"] = Button("Back")
+        self["key_green"] = Button("Save to File")
+        self["key_yellow"] = Button("Stop Analysis")
+        self["background2"] = Pixmap()
+        
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
+            {
+                "ok": self.close,
+                "cancel": self.close,
+                "red": self.close,
+                "green": self.saveToFile,
+                "yellow": self.stopAnalysis,
+                "up": self["analyze_results"].pageUp,
+                "down": self["analyze_results"].pageDown,
+            }, -2)
+        
+        self.onLayoutFinish.append(self.showResults)
+
+    def showResults(self):
+        print("[AbertisAnalyzeScreen] Showing results")
+        self["analyze_results"].setText("\n".join(self.analyze_output))
+
+    def updateResults(self):
+        print("[AbertisAnalyzeScreen] Updating results")
+        self["analyze_results"].setText("\n".join(self.analyze_output))
+
+    def saveToFile(self):
+        print("[AbertisAnalyzeScreen] Saving results to file")
+        try:
+            dir_path = "/tmp/CiefpSatelliteAnalyzer"
+            os.makedirs(dir_path, exist_ok=True)
+            pid_str = f"pid{self.pid}" if self.pid else "no_pid"
+            filename = f"{dir_path}/abertis_analyze_{time.strftime('%Y%m%d')}_{pid_str}.log"
+            with open(filename, 'w') as f:
+                f.write("\n".join(self.analyze_output))
+            self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
+        except Exception as e:
+            print(f"[AbertisAnalyzeScreen] Error saving file: {str(e)}")
+            self.session.open(MessageBox, f"Error saving file:\n{str(e)}", MessageBox.TYPE_ERROR)
+
+    def stopAnalysis(self):
+        print("[AbertisAnalyzeScreen] Initiating stopAnalysis")
+        try:
+            if self.container:
+                print("[AbertisAnalyzeScreen] Killing container process")
+                self.container.kill()
+                os.system("systemctl stop astra-sm")
+                print("[AbertisAnalyzeScreen] Executed systemctl stop astra-sm")
+                time.sleep(0.5)
+                if os.system("pidof astra >/dev/null") == 0:
+                    print("[AbertisAnalyzeScreen] Warning: astra process still running after stop")
+                else:
+                    print("[AbertisAnalyzeScreen] astra process successfully terminated")
+                self.container = None
+            else:
+                print("[AbertisAnalyzeScreen] No container to kill")
+            if self.parent:
+                print("[AbertisAnalyzeScreen] Calling parent.stopAnalysisCleanup")
+                self.parent.stopAnalysisCleanup()
+            else:
+                print("[AbertisAnalyzeScreen] No parent instance available")
+            print("[AbertisAnalyzeScreen] Closing screen")
+            self.close()
+        except Exception as e:
+            print(f"[AbertisAnalyzeScreen] Error in stopAnalysis: {str(e)}")
+            self.session.open(MessageBox, f"Error stopping analysis: {str(e)}", MessageBox.TYPE_ERROR)
+
 class SatelliteAnalyzer(Screen):
     skin = """
     <screen name="SatelliteAnalyzer" position="center,center" size="1800,900" title="..:: Ciefp Satellite Analyzer ::..">
@@ -117,18 +219,20 @@ class SatelliteAnalyzer(Screen):
         <!-- Logo (400x500) -->
         <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1400,0" size="400,500" />
         <!-- Naslov -->
-        <widget source="Title" render="Label" position="1400,550" size="400,50" 
+        <widget source="Title" render="Label" position="1400,520" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
         <!-- Vrijeme -->
-        <widget name="time" position="1400,600" size="400,40" 
+        <widget name="time" position="1400,570" size="400,40" 
                 font="Regular;24" halign="center" valign="center" foregroundColor="#BBBBBB" backgroundColor="#0D1B36" />
          <!-- Dugmad -->
-        <widget name="key_red" position="1440,650" size="320,40" 
+        <widget name="key_red" position="1440,620" size="320,40" 
                 backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_green" position="1440,720" size="320,40" 
+        <widget name="key_green" position="1440,670" size="320,40" 
                 backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_yellow" position="1440,790" size="320,40" 
+        <widget name="key_yellow" position="1440,720" size="320,40" 
                 backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />  
+        <widget name="key_blue" position="1440,770" size="320,40" 
+                backgroundColor="blue" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
         <!-- LEVO: Osnovni info -->
         <widget name="info_left" position="20,20" size="680,800" 
                 font="Console;24" transparent="1" />
@@ -152,6 +256,7 @@ class SatelliteAnalyzer(Screen):
         self["key_red"] = Label("Back")
         self["key_green"] = Label("Update")
         self["key_yellow"] = Label("Astra Analyze")
+        self["key_blue"] = Label("Abertis Scan")
         self["background"] = Pixmap()
 
         self["snr_label"] = Label("SNR:")
@@ -166,6 +271,7 @@ class SatelliteAnalyzer(Screen):
                 "red": self.close,
                 "green": self.updateInfo,
                 "yellow": self.startAstraAnalyze,
+                "blue": self.startAbertisAnalyze,
                 "up": self["info_left"].pageUp,
                 "down": self["info_left"].pageDown,
             }, -2)
@@ -183,21 +289,31 @@ class SatelliteAnalyzer(Screen):
         self.onLayoutFinish.append(self.updateInfo)
 
         self.astra_options = [
-            ("4095 - c:150fff", "t2mi://#t2mi_pid=4095&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4096 - c:151000", "t2mi://#t2mi_pid=4096&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4096 - c:151000 plp2", "t2mi://#t2mi_pid=4096&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4097 - c:151001", "t2mi://#t2mi_pid=4097&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4706 - c:151262", "t2mi://#t2mi_pid=4706&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4716 - c:15126C", "t2mi://#t2mi_pid=4716&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4219 - c:15107B", "t2mi://#t2mi_pid=4219&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4646 - c:151226", "t2mi://#t2mi_pid=4646&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4102 - c:151006", "t2mi://#t2mi_pid=4102&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("4105 - c:151009", "t2mi://#t2mi_pid=4105&t2mi_input=http://127.0.0.1:8001/-----:"),
-            ("Default (no T2MI)", "http://127.0.0.1:8001/-----:")
+            ("4095 - c:150fff", "t2mi://#t2mi_pid=4095&t2mi_input=http://127.0.0.1:8001/-----:", "4095"),
+            ("4096 - c:151000", "t2mi://#t2mi_pid=4096&t2mi_input=http://127.0.0.1:8001/-----:", "4096"),
+            ("4096 - c:151000 plp2", "t2mi://#t2mi_pid=4096&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:", "4096_plp2"),
+            ("4097 - c:151001", "t2mi://#t2mi_pid=4097&t2mi_input=http://127.0.0.1:8001/-----:", "4097"),
+            ("4706 - c:151262", "t2mi://#t2mi_pid=4706&t2mi_input=http://127.0.0.1:8001/-----:", "4706"),
+            ("4716 - c:15126C", "t2mi://#t2mi_pid=4716&t2mi_input=http://127.0.0.1:8001/-----:", "4716"),
+            ("4219 - c:15107B", "t2mi://#t2mi_pid=4219&t2mi_input=http://127.0.0.1:8001/-----:", "4219"),
+            ("4646 - c:151226", "t2mi://#t2mi_pid=4646&t2mi_input=http://127.0.0.1:8001/-----:", "4646"),
+            ("4102 - c:151006", "t2mi://#t2mi_pid=4102&t2mi_input=http://127.0.0.1:8001/-----:", "4102"),
+            ("4105 - c:151009", "t2mi://#t2mi_pid=4105&t2mi_input=http://127.0.0.1:8001/-----:", "4105"),
+            ("Default (no T2MI)", "http://127.0.0.1:8001/-----:", "no_t2mi")
         ]
+
+        self.abertis_pids = [
+            "301", "303", "420", "421", "423", "701", "702", "703", "801",
+            "2025", "2026", "2027", "2028", "2050", "2060", "2270", "2271",
+            "2272", "2273", "2274", "2302", "2303", "2305", "2306", "2308",
+            "2520", "2521", "2522", "2523", "2524", "8000", "8001", "8002",
+            "8003", "8004", "8005", "8006"
+        ]
+        self.abertis_options = [(pid, f"http://127.0.0.1:9999/abertis/pid{pid}", pid) for pid in self.abertis_pids]
         self.astra_output = []
         self.analyzing = False
         self.astra_analyze_screen = None
+        self.abertis_analyze_screen = None
         self.container = None
 
     def close(self):
@@ -210,14 +326,18 @@ class SatelliteAnalyzer(Screen):
             print("[SatelliteAnalyzer] Closing astra_analyze_screen")
             self.astra_analyze_screen.close()
             self.astra_analyze_screen = None
+        if self.abertis_analyze_screen:
+            print("[SatelliteAnalyzer] Closing abertis_analyze_screen")
+            self.abertis_analyze_screen.close()
+            self.abertis_analyze_screen = None
         if self.container:
             print("[SatelliteAnalyzer] Killing container in close")
             self.container.kill()
-            os.system("killall -9 astra")
-            print("[SatelliteAnalyzer] Executed killall -9 astra")
+            os.system("systemctl stop astra-sm")
+            print("[SatelliteAnalyzer] Executed systemctl stop astra-sm")
             time.sleep(0.5)
             if os.system("pidof astra >/dev/null") == 0:
-                print("[SatelliteAnalyzer] Warning: astra process still running after kill")
+                print("[SatelliteAnalyzer] Warning: astra process still running after stop")
             else:
                 print("[SatelliteAnalyzer] astra process successfully terminated")
             self.container = None
@@ -232,11 +352,11 @@ class SatelliteAnalyzer(Screen):
             if self.container:
                 print("[SatelliteAnalyzer] Killing container in stopAnalysisCleanup")
                 self.container.kill()
-                os.system("killall -9 astra")
-                print("[SatelliteAnalyzer] Executed killall -9 astra")
+                os.system("systemctl stop astra-sm")
+                print("[SatelliteAnalyzer] Executed systemctl stop astra-sm")
                 time.sleep(0.5)
                 if os.system("pidof astra >/dev/null") == 0:
-                    print("[SatelliteAnalyzer] Warning: astra process still running after kill")
+                    print("[SatelliteAnalyzer] Warning: astra process still running after stop")
                 else:
                     print("[SatelliteAnalyzer] astra process successfully terminated")
                 self.container = None
@@ -244,6 +364,10 @@ class SatelliteAnalyzer(Screen):
                 print("[SatelliteAnalyzer] Closing astra_analyze_screen in stopAnalysisCleanup")
                 self.astra_analyze_screen.close()
                 self.astra_analyze_screen = None
+            if self.abertis_analyze_screen:
+                print("[SatelliteAnalyzer] Closing abertis_analyze_screen in stopAnalysisCleanup")
+                self.abertis_analyze_screen.close()
+                self.abertis_analyze_screen = None
             self.resetTunerAndStream()
         except Exception as e:
             print(f"[SatelliteAnalyzer] Error in stopAnalysisCleanup: {str(e)}")
@@ -272,7 +396,12 @@ class SatelliteAnalyzer(Screen):
                 print("[SatelliteAnalyzer] Streamrelay restarted")
             else:
                 print("[SatelliteAnalyzer] Streamrelay binary not found")
-                
+            
+            # Restart astra-sm to reload astra.conf
+            print("[SatelliteAnalyzer] Restarting astra-sm service")
+            os.system("systemctl restart astra-sm")
+            print("[SatelliteAnalyzer] Executed systemctl restart astra-sm")
+            
             # Provjeri stanje e2stream servera
             if os.system("netstat -tuln | grep :8001 >/dev/null") != 0:
                 print("[SatelliteAnalyzer] Warning: e2stream server (port 8001) not running")
@@ -354,20 +483,37 @@ class SatelliteAnalyzer(Screen):
             self.session.open(MessageBox, _("Error: astra-sm not found. Please install astra-sm."), MessageBox.TYPE_ERROR)
             return
         print("[SatelliteAnalyzer] Opening ChoiceBox for analysis options")
-        self.session.openWithCallback(self.onAnalyzeSelected, ChoiceBox, title=_("Select Analyze Option"), list=self.astra_options)
+        self.session.openWithCallback(self.onAnalyzeSelected, ChoiceBox, title=_("Select Analyze Option"), list=[(opt[0], opt) for opt in self.astra_options])
+
+    def startAbertisAnalyze(self):
+        print("[SatelliteAnalyzer] Starting abertis analyze")
+        service_ref = self.getServiceReference()
+        print(f"[SatelliteAnalyzer] Service reference: {service_ref}")
+        if service_ref == "N/A":
+            print("[SatelliteAnalyzer] No active service for analysis")
+            self.session.open(MessageBox, _("No active service for analysis!"), MessageBox.TYPE_ERROR)
+            return
+        if not os.path.exists("/usr/bin/astra"):
+            print("[SatelliteAnalyzer] Error: astra-sm not found at /usr/bin/astra")
+            self.session.open(MessageBox, _("Error: astra-sm not found. Please install astra-sm."), MessageBox.TYPE_ERROR)
+            return
+        print("[SatelliteAnalyzer] Opening ChoiceBox for Abertis PID options")
+        self.session.openWithCallback(self.onAbertisAnalyzeSelected, ChoiceBox, title=_("Select Abertis PID"), list=[(opt[0], opt) for opt in self.abertis_options])
 
     def onAnalyzeSelected(self, choice):
         print("[SatelliteAnalyzer] onAnalyzeSelected called with choice:", choice)
         if choice:
             try:
+                option = choice[1]  # Get the full option tuple
+                pid = option[2]  # Extract PID from the option tuple
                 self.analyzing = True
                 self.astra_output = []
                 self.container = eConsoleAppContainer()
                 print("[SatelliteAnalyzer] Created eConsoleAppContainer")
-                self.astra_analyze_screen = self.session.open(AstraAnalyzeScreen, self.astra_output, self.container, self)
+                self.astra_analyze_screen = self.session.open(AstraAnalyzeScreen, self.astra_output, self.container, self, pid=pid)
                 print("[SatelliteAnalyzer] Opened AstraAnalyzeScreen")
                 self.session.open(MessageBox, _("Analysis in progress, wait a few seconds or press the yellow button to stop."), MessageBox.TYPE_INFO, timeout=5)
-                cmd_template = choice[1]
+                cmd_template = option[1]
                 service_ref = self.getServiceReference()
                 if service_ref == "N/A":
                     print("[SatelliteAnalyzer] Error: Service reference became invalid")
@@ -388,6 +534,32 @@ class SatelliteAnalyzer(Screen):
         else:
             print("[SatelliteAnalyzer] No choice selected, cancelling analysis")
 
+    def onAbertisAnalyzeSelected(self, choice):
+        print("[SatelliteAnalyzer] onAbertisAnalyzeSelected called with choice:", choice)
+        if choice:
+            try:
+                option = choice[1]  # Get the full option tuple
+                pid = option[2]  # Extract PID from the option tuple
+                self.analyzing = True
+                self.astra_output = []
+                self.container = eConsoleAppContainer()
+                print("[SatelliteAnalyzer] Created eConsoleAppContainer for Abertis")
+                self.abertis_analyze_screen = self.session.open(AbertisAnalyzeScreen, self.astra_output, self.container, self, pid=pid)
+                print("[SatelliteAnalyzer] Opened AbertisAnalyzeScreen")
+                self.session.open(MessageBox, _("Abertis analysis in progress, wait a few seconds or press the yellow button to stop."), MessageBox.TYPE_INFO, timeout=5)
+                cmd = f'astra --analyze "{option[1]}"'
+                print(f"[SatelliteAnalyzer] Executing Abertis command: {cmd}")
+                self.container.appClosed.append(self.onAnalyzeFinished)
+                self.container.dataAvail.append(self.onDataAvail)
+                self.container.execute(cmd)
+                print("[SatelliteAnalyzer] Abertis command executed")
+            except Exception as e:
+                print(f"[SatelliteAnalyzer] Error in onAbertisAnalyzeSelected: {str(e)}")
+                self.session.open(MessageBox, f"Error starting Abertis analysis: {str(e)}", MessageBox.TYPE_ERROR)
+                self.stopAnalysisCleanup()
+        else:
+            print("[SatelliteAnalyzer] No PID selected, cancelling Abertis analysis")
+
     def onDataAvail(self, data):
         try:
             data = data.decode('utf-8')
@@ -397,19 +569,24 @@ class SatelliteAnalyzer(Screen):
                     self.astra_output.append(line.strip())
                     if self.astra_analyze_screen:
                         self.astra_analyze_screen.updateResults()
+                    if self.abertis_analyze_screen:
+                        self.abertis_analyze_screen.updateResults()
         except Exception as e:
             print(f"[SatelliteAnalyzer] Error in onDataAvail: {str(e)}")
 
     def onAnalyzeFinished(self, retval):
         print(f"[SatelliteAnalyzer] Analysis finished, return code: {retval}, output: {self.astra_output}")
         self.analyzing = False
-        if not self.astra_output and self.astra_analyze_screen:
-            self.astra_analyze_screen.updateResults()
+        if not self.astra_output:
+            if self.astra_analyze_screen:
+                self.astra_analyze_screen.updateResults()
+            if self.abertis_analyze_screen:
+                self.abertis_analyze_screen.updateResults()
             self.session.open(MessageBox, _("No results or analysis error."), MessageBox.TYPE_ERROR)
         self.container = None
         # Dodatno čišćenje procesa
-        os.system("killall -9 astra")
-        print("[SatelliteAnalyzer] Executed killall -9 astra in onAnalyzeFinished")
+        os.system("systemctl stop astra-sm")
+        print("[SatelliteAnalyzer] Executed systemctl stop astra-sm in onAnalyzeFinished")
         time.sleep(0.5)
         if os.system("pidof astra >/dev/null") == 0:
             print("[SatelliteAnalyzer] Warning: astra process still running after onAnalyzeFinished")
