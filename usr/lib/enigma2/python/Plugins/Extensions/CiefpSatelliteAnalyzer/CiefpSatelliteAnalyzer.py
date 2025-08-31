@@ -120,7 +120,7 @@ class AbertisAnalyzeScreen(Screen):
         <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
         <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background2.png" position="1400,0" size="400,500" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background3.png" position="1400,0" size="400,500" />
         <!-- Rezultati analize -->
         <widget name="analyze_results" position="20,20" size="1360,880" 
                 font="Console;20" transparent="1" foregroundColor="white" />
