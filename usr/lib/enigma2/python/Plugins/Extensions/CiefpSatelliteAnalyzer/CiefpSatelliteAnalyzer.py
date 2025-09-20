@@ -1,4 +1,3 @@
-# CiefpSatelliteAnalyzer.py
 from enigma import eServiceCenter, eServiceReference, iServiceInformation, eTimer, eConsoleAppContainer
 from Tools.Directories import fileExists, resolveFilename, SCOPE_PLUGINS
 from Screens.Screen import Screen
@@ -12,8 +11,10 @@ from Components.ProgressBar import ProgressBar
 from Components.Button import Button
 import os
 import xml.etree.ElementTree as ET
+import urllib.parse
 import subprocess
 import time
+import re
 
 class AstraAnalyzeScreen(Screen):
     skin = """
@@ -44,24 +45,24 @@ class AstraAnalyzeScreen(Screen):
         self.analyze_output = analyze_output
         self.container = container
         self.parent = parent
-        self.pid = pid  # Store the PID for use in saveToFile
+        self.pid = pid
         self["analyze_results"] = ScrollLabel("")
         self["key_red"] = Button("Back")
         self["key_green"] = Button("Save to File")
         self["key_yellow"] = Button("Stop Analysis")
         self["background2"] = Pixmap()
-        
+
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
-            {
-                "ok": self.close,
-                "cancel": self.close,
-                "red": self.close,
-                "green": self.saveToFile,
-                "yellow": self.stopAnalysis,
-                "up": self["analyze_results"].pageUp,
-                "down": self["analyze_results"].pageDown,
-            }, -2)
-        
+                                    {
+                                        "ok": self.close,
+                                        "cancel": self.close,
+                                        "red": self.close,
+                                        "green": self.saveToFile,
+                                        "yellow": self.stopAnalysis,
+                                        "up": self["analyze_results"].pageUp,
+                                        "down": self["analyze_results"].pageDown,
+                                    }, -2)
+
         self.onLayoutFinish.append(self.showResults)
 
     def showResults(self):
@@ -78,7 +79,30 @@ class AstraAnalyzeScreen(Screen):
             dir_path = "/tmp/CiefpSatelliteAnalyzer"
             os.makedirs(dir_path, exist_ok=True)
             pid_str = f"pid{self.pid}" if self.pid else "no_pid"
-            filename = f"{dir_path}/astra_analyze_{time.strftime('%Y%m%d')}_{pid_str}.log"
+            date_str = time.strftime('%Y%m%d')
+            # Dohvati provajdera iz analyze_output
+            provider = "Unknown"
+            for line in self.analyze_output:
+                if 'Provider:' in line:
+                    provider_match = re.search(r'Provider:\s*(.+)', line)
+                    if provider_match:
+                        provider = provider_match.group(1).strip().replace(" ", "_")
+                        break
+            # Dohvati satelit
+            satellite = "Unknown"
+            service = self.session.nav.getCurrentService()
+            if service:
+                frontendInfo = service.frontendInfo()
+                if frontendInfo:
+                    frontendData = frontendInfo.getAll(True)
+                    if frontendData:
+                        try:
+                            orbital_pos = frontendData.get("orbital_position", 0)
+                            satellite = self.parent.formatOrbitalPos(orbital_pos)
+                        except Exception as e:
+                            print(f"[AstraAnalyzeScreen] Error getting satellite info: {str(e)}")
+                            satellite = "Unknown"
+            filename = f"{dir_path}/astra_analyze_{provider}_{satellite}_{date_str}_{pid_str}.log"
             with open(filename, 'w') as f:
                 f.write("\n".join(self.analyze_output))
             self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
@@ -142,24 +166,24 @@ class AbertisAnalyzeScreen(Screen):
         self.analyze_output = analyze_output
         self.container = container
         self.parent = parent
-        self.pid = pid  # Store the PID for use in saveToFile
+        self.pid = pid
         self["analyze_results"] = ScrollLabel("")
         self["key_red"] = Button("Back")
         self["key_green"] = Button("Save to File")
         self["key_yellow"] = Button("Stop Analysis")
         self["background2"] = Pixmap()
-        
+
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
-            {
-                "ok": self.close,
-                "cancel": self.close,
-                "red": self.close,
-                "green": self.saveToFile,
-                "yellow": self.stopAnalysis,
-                "up": self["analyze_results"].pageUp,
-                "down": self["analyze_results"].pageDown,
-            }, -2)
-        
+                                    {
+                                        "ok": self.close,
+                                        "cancel": self.close,
+                                        "red": self.close,
+                                        "green": self.saveToFile,
+                                        "yellow": self.stopAnalysis,
+                                        "up": self["analyze_results"].pageUp,
+                                        "down": self["analyze_results"].pageDown,
+                                    }, -2)
+
         self.onLayoutFinish.append(self.showResults)
 
     def showResults(self):
@@ -176,7 +200,30 @@ class AbertisAnalyzeScreen(Screen):
             dir_path = "/tmp/CiefpSatelliteAnalyzer"
             os.makedirs(dir_path, exist_ok=True)
             pid_str = f"pid{self.pid}" if self.pid else "no_pid"
-            filename = f"{dir_path}/abertis_analyze_{time.strftime('%Y%m%d')}_{pid_str}.log"
+            date_str = time.strftime('%Y%m%d')
+            # Dohvati provajdera iz analyze_output
+            provider = "Unknown"
+            for line in self.analyze_output:
+                if 'Provider:' in line:
+                    provider_match = re.search(r'Provider:\s*(.+)', line)
+                    if provider_match:
+                        provider = provider_match.group(1).strip().replace(" ", "_")
+                        break
+            # Dohvati satelit
+            satellite = "Unknown"
+            service = self.session.nav.getCurrentService()
+            if service:
+                frontendInfo = service.frontendInfo()
+                if frontendInfo:
+                    frontendData = frontendInfo.getAll(True)
+                    if frontendData:
+                        try:
+                            orbital_pos = frontendData.get("orbital_position", 0)
+                            satellite = self.parent.formatOrbitalPos(orbital_pos)
+                        except Exception as e:
+                            print(f"[AbertisAnalyzeScreen] Error getting satellite info: {str(e)}")
+                            satellite = "Unknown"
+            filename = f"{dir_path}/abertis_analyze_{provider}_{satellite}_{date_str}_{pid_str}.log"
             with open(filename, 'w') as f:
                 f.write("\n".join(self.analyze_output))
             self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
@@ -254,27 +301,26 @@ class SatelliteAnalyzer(Screen):
         self["astra_results"] = Label("")
         self["time"] = Label("")
         self["key_red"] = Label("Back")
-        self["key_green"] = Label("Update")
+        self["key_green"] = Label("Create Bouquet")
         self["key_yellow"] = Label("Astra Analyze")
         self["key_blue"] = Label("Abertis Scan")
         self["background"] = Pixmap()
-
         self["snr_label"] = Label("SNR:")
         self["snr_bar"] = ProgressBar()
         self["agc_label"] = Label("AGC:")
         self["agc_bar"] = ProgressBar()
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
-            {
-                "ok": self.close,
-                "cancel": self.close,
-                "red": self.close,
-                "green": self.updateInfo,
-                "yellow": self.startAstraAnalyze,
-                "blue": self.startAbertisAnalyze,
-                "up": self["info_left"].pageUp,
-                "down": self["info_left"].pageDown,
-            }, -2)
+                                    {
+                                        "ok": self.close,
+                                        "cancel": self.close,
+                                        "red": self.close,
+                                        "green": self.createBouquet,
+                                        "yellow": self.startAstraAnalyze,
+                                        "blue": self.startAbertisAnalyze,
+                                        "up": self["info_left"].pageUp,
+                                        "down": self["info_left"].pageDown,
+                                    }, -2)
 
         self.time_update_timer = eTimer()
         self.time_update_timer.callback.append(self.updateTime)
@@ -304,7 +350,7 @@ class SatelliteAnalyzer(Screen):
 
         self.abertis_pids = [
             "301", "303", "420", "421", "423", "701", "702", "703", "801",
-            "2025", "2026", "2027", "2028", "2050", "2060", "2270", "2271",
+            "2025", "2026", "2027", "2027", "2028", "2050", "2060", "2270", "2271",
             "2272", "2273", "2274", "2302", "2303", "2305", "2306", "2308",
             "2520", "2521", "2522", "2523", "2524", "8000", "8001", "8002",
             "8003", "8004", "8005", "8006"
@@ -375,19 +421,14 @@ class SatelliteAnalyzer(Screen):
     def resetTunerAndStream(self):
         print("[SatelliteAnalyzer] Resetting tuner and stream resources")
         try:
-            # Oslobodi tuner
             resource_manager = eDVBResourceManager.getInstance()
             if resource_manager:
                 print("[SatelliteAnalyzer] Releasing cached channel")
                 resource_manager.releaseCachedChannel()
             else:
                 print("[SatelliteAnalyzer] Warning: eDVBResourceManager not available")
-            
-            # Zaustavi aktivni stream
             self.session.nav.stopService()
             print("[SatelliteAnalyzer] Stopped current service")
-            
-            # Ponovno pokreni streamrelay ako je dostupan
             if os.path.exists("/usr/bin/streamrelay"):
                 print("[SatelliteAnalyzer] Restarting streamrelay")
                 os.system("killall -9 streamrelay")
@@ -396,13 +437,9 @@ class SatelliteAnalyzer(Screen):
                 print("[SatelliteAnalyzer] Streamrelay restarted")
             else:
                 print("[SatelliteAnalyzer] Streamrelay binary not found")
-            
-            # Restart astra-sm to reload astra.conf
             print("[SatelliteAnalyzer] Restarting astra-sm service")
             os.system("systemctl restart astra-sm")
             print("[SatelliteAnalyzer] Executed systemctl restart astra-sm")
-            
-            # Provjeri stanje e2stream servera
             if os.system("netstat -tuln | grep :8001 >/dev/null") != 0:
                 print("[SatelliteAnalyzer] Warning: e2stream server (port 8001) not running")
             else:
@@ -504,8 +541,8 @@ class SatelliteAnalyzer(Screen):
         print("[SatelliteAnalyzer] onAnalyzeSelected called with choice:", choice)
         if choice:
             try:
-                option = choice[1]  # Get the full option tuple
-                pid = option[2]  # Extract PID from the option tuple
+                option = choice[1]
+                pid = option[2]
                 self.analyzing = True
                 self.astra_output = []
                 self.container = eConsoleAppContainer()
@@ -538,8 +575,8 @@ class SatelliteAnalyzer(Screen):
         print("[SatelliteAnalyzer] onAbertisAnalyzeSelected called with choice:", choice)
         if choice:
             try:
-                option = choice[1]  # Get the full option tuple
-                pid = option[2]  # Extract PID from the option tuple
+                option = choice[1]
+                pid = option[2]
                 self.analyzing = True
                 self.astra_output = []
                 self.container = eConsoleAppContainer()
@@ -584,7 +621,6 @@ class SatelliteAnalyzer(Screen):
                 self.abertis_analyze_screen.updateResults()
             self.session.open(MessageBox, _("No results or analysis error."), MessageBox.TYPE_ERROR)
         self.container = None
-        # Dodatno čišćenje procesa
         os.system("systemctl stop astra-sm")
         print("[SatelliteAnalyzer] Executed systemctl stop astra-sm in onAnalyzeFinished")
         time.sleep(0.5)
@@ -715,7 +751,6 @@ class SatelliteAnalyzer(Screen):
         satellites_file = "/etc/tuxbox/satellites.xml"
         if not os.path.exists(satellites_file):
             return self.formatOrbitalPos(orbital_position)
-
         try:
             tree = ET.parse(satellites_file)
             root = tree.getroot()
@@ -748,12 +783,10 @@ class SatelliteAnalyzer(Screen):
         info = service.info()
         if not info:
             return "❌ Ne mogu dohvatiti info objekat."
-
         frontendInfo = service.frontendInfo()
         frontendData = frontendInfo and frontendInfo.getAll(True)
         if not frontendData:
             return "❌ Ne mogu dohvatiti frontend podatke."
-
         try:
             freq = frontendData.get("frequency", 0) // 1000
         except:
@@ -777,7 +810,6 @@ class SatelliteAnalyzer(Screen):
             sat_name = self.getSatelliteNameFromXML(orbital_pos)
         except:
             sat_name = "Nepoznat satelit"
-
         try:
             mod = frontendData.get("modulation", 0)
             mod_str = self.getModulation(mod)
@@ -809,7 +841,6 @@ class SatelliteAnalyzer(Screen):
             t2mi_pid_str = f"0x{t2mi_pid:X}" if t2mi_pid >= 0 else "N/A"
         except:
             t2mi_pid_str = "N/A"
-
         try:
             name = info.getName() or "N/A"
         except:
@@ -818,7 +849,6 @@ class SatelliteAnalyzer(Screen):
             provider = info.getInfoString(iServiceInformation.sProvider) or "N/A"
         except:
             provider = "N/A"
-
         try:
             vpid = info.getInfo(iServiceInformation.sVideoPID)
             vpid_str = f"0x{vpid:X}" if vpid != -1 else "N/A"
@@ -844,7 +874,6 @@ class SatelliteAnalyzer(Screen):
             txt_str = f"0x{txt_pid:X}" if txt_pid != -1 else "N/A"
         except:
             txt_str = "N/A"
-
         dvbt_params = ""
         if tuner_type in ["DVB-T", "DVB-T2"]:
             try:
@@ -891,7 +920,6 @@ class SatelliteAnalyzer(Screen):
        Guard Interval: {guard_interval_str}
        Hierarchy: {hierarchy_str}
             """
-
         text = f"""
        Channel: {name}
        Provider: {provider}
@@ -922,14 +950,11 @@ class SatelliteAnalyzer(Screen):
         info = service.info()
         if not info:
             return "Cannot retrieve info object."
-
         service_ref = self.getServiceReference()
-
         try:
             caids = info.getInfoObject(iServiceInformation.sCAIDs) or []
         except:
             caids = []
-
         active_caid = None
         ecm_path = "/tmp/ecm.info"
         if os.path.exists(ecm_path):
@@ -945,7 +970,6 @@ class SatelliteAnalyzer(Screen):
                                 pass
             except:
                 pass
-
         caid_list = []
         if caids:
             for caid in sorted(set(caids)):
@@ -957,7 +981,6 @@ class SatelliteAnalyzer(Screen):
                     caid_list.append(f"   CAID: 0x{caid:04X} {marker}")
         else:
             caid_list.append("No encryption")
-
         frontendInfo = service.frontendInfo()
         frontendData = frontendInfo and frontendInfo.getAll(True)
         try:
@@ -967,7 +990,6 @@ class SatelliteAnalyzer(Screen):
             agc = frontendData.get("tuner_signal_power", 0) // 655
         except:
             snr_db, snr_percent, ber, agc = 0.0, 0, 0, 0
-
         try:
             sid = info.getInfo(iServiceInformation.sSID)
         except:
@@ -980,7 +1002,6 @@ class SatelliteAnalyzer(Screen):
             onid = info.getInfo(iServiceInformation.sONID)
         except:
             onid = -1
-
         right_text = [
             "Encryption:",
             *caid_list,
@@ -1000,3 +1021,180 @@ class SatelliteAnalyzer(Screen):
             f"   {service_ref}"
         ]
         return "\n".join(right_text)
+
+    def parse_astra_conf(self, conf_path="/etc/astra/astra.conf"):
+        import re, os
+        if not os.path.exists(conf_path):
+            print(f"[parse_astra_conf] File not found: {conf_path}")
+            return {}
+        with open(conf_path, "r") as f:
+            conf_content = f.read()
+        t2mi_blocks = re.findall(
+            r'(\w+)\s*=\s*make_t2mi_decap\(\{([^}]*)\}\)',
+            conf_content, re.DOTALL | re.IGNORECASE
+        )
+        print(f"[parse_astra_conf] Found {len(t2mi_blocks)} t2mi_decap blocks")
+        result = {}
+        for var_name, body in t2mi_blocks:
+            pid = re.search(r'pid\s*=\s*(\d+)', body)
+            name = re.search(r'name\s*=\s*"([^"]+)"', body)
+            result[var_name] = {
+                "pid": pid.group(1) if pid else None,
+                "name": name.group(1) if name else var_name,
+                "output": None
+            }
+            print(f"[parse_astra_conf] Added block var={var_name} pid={result[var_name]['pid']} name={result[var_name]['name']}")
+        channel_blocks = re.findall(
+            r'make_channel\(\{(.*?)\}\)',
+            conf_content, re.DOTALL | re.IGNORECASE
+        )
+        print(f"[parse_astra_conf] Found {len(channel_blocks)} make_channel blocks")
+        for body in channel_blocks:
+            input_match = re.search(r't2mi://(\w+)', body)
+            output_match = re.search(r'output\s*=\s*\{[^"]*"([^"]+)"', body, re.DOTALL)
+            if input_match:
+                ref = input_match.group(1)
+                if output_match:
+                    output_url = output_match.group(1)
+                    if ref in result:
+                        result[ref]["output"] = output_url
+                        print(f"[parse_astra_conf] Linked {ref} -> {output_url}")
+                else:
+                    print(f"[parse_astra_conf] Found input {ref} but no output in block!")
+        return result
+
+    def createBouquet(self):
+        print("[SatelliteAnalyzer] Starting bouquet creation")
+        log_dir = "/tmp/CiefpSatelliteAnalyzer"
+        if not os.path.exists(log_dir):
+            self.session.open(MessageBox, _("Log directory not found!"), MessageBox.TYPE_ERROR)
+            return
+        logs = [f for f in os.listdir(log_dir) if f.endswith(".log")]
+        if not logs:
+            self.session.open(MessageBox, _("No log files found!"), MessageBox.TYPE_ERROR)
+            return
+        choices = []
+        for log in sorted(logs):
+            choices.append((log, log))
+        self.session.openWithCallback(
+            self.logSelected,
+            ChoiceBox,
+            title="Select analyze log file",
+            list=choices
+        )
+
+    def logSelected(self, choice):
+        if not choice:
+            return
+        log_file = choice[1]
+        self.selected_log_file = log_file
+        print(f"[SatelliteAnalyzer] User selected log: {log_file}")
+        blocks = self.parse_astra_conf()
+        if not blocks:
+            self.session.open(MessageBox, _("No T2MI blocks found in astra.conf!"), MessageBox.TYPE_ERROR)
+            return
+        choices = []
+        for ref, data in blocks.items():
+            if data["output"]:
+                label = f"{data['name']} (pid {data['pid']}) -> {data['output']}"
+                choices.append((label, ref))
+        if not choices:
+            self.session.open(MessageBox, _("No usable T2MI blocks with output found!"), MessageBox.TYPE_ERROR)
+            return
+        self.session.openWithCallback(
+            self.blockSelected,
+            ChoiceBox,
+            title="Select T2MI block from astra.conf",
+            list=choices
+        )
+
+    def blockSelected(self, choice):
+        if not choice:
+            return
+        block_ref = choice[1]
+        log_file = self.selected_log_file
+        print(f"[SatelliteAnalyzer] User selected block: {block_ref} for log {log_file}")
+        self.processSelectedLog(log_file, block_ref)
+
+    def processSelectedLog(self, log_file, block_ref):
+        import re, os
+        from urllib.parse import quote
+        from enigma import eDVBDB
+        log_path = os.path.join("/tmp/CiefpSatelliteAnalyzer", log_file)
+        if not os.path.exists(log_path):
+            self.session.open(MessageBox, _("Selected log file not found!"), MessageBox.TYPE_ERROR)
+            return
+        blocks = self.parse_astra_conf()
+        if block_ref not in blocks or not blocks[block_ref]["output"]:
+            self.session.open(MessageBox, _("Selected T2MI block not found in astra.conf!"), MessageBox.TYPE_ERROR)
+            return
+        matched = blocks[block_ref]
+        base_url = matched["output"]
+        marker_pid = matched["pid"]
+        print(f"[SatelliteAnalyzer] Using block {block_ref}: pid={marker_pid}, url={base_url}")
+        # Dohvati informaciju o satelitu
+        satellite = "Unknown"
+        service = self.session.nav.getCurrentService()
+        if service:
+            frontendInfo = service.frontendInfo()
+            if frontendInfo:
+                frontendData = frontendInfo.getAll(True)
+                if frontendData:
+                    try:
+                        orbital_pos = frontendData.get("orbital_position", 0)
+                        satellite = self.formatOrbitalPos(orbital_pos)
+                    except Exception as e:
+                        print(f"[SatelliteAnalyzer] Error getting satellite info: {str(e)}")
+                        satellite = "Unknown"
+        # Parsiraj log fajl
+        channels = []
+        sid = service = provider = None
+        with open(log_path, "r") as f:
+            for line in f:
+                if 'sid:' in line:
+                    sid = re.search(r'sid:\s*(\d+)', line).group(1)
+                elif 'Service:' in line:
+                    service = re.search(r'Service:\s*(.+)', line).group(1).strip()
+                elif 'Provider:' in line and sid and service:
+                    provider = re.search(r'Provider:\s*(.+)', line).group(1).strip()
+                    channels.append({'sid': int(sid), 'name': service, 'provider': provider})
+                    sid = service = provider = None
+        if not channels:
+            self.session.open(MessageBox, _("No channels found in selected log!"), MessageBox.TYPE_ERROR)
+            return
+        # Uzmi prvog provajdera iz kanala
+        provider = channels[0]['provider'].replace(" ", "_") if channels else "Unknown"
+        # Generiši sadržaj
+        bouquet_path = '/etc/enigma2/userbouquet.buket_t2mi.tv'
+        tsid = '2DE3'
+        onid = '30'
+        namespace = '300000'
+        encoded_url = base_url.replace(":", "%3a")
+        content = f'#SERVICE 1:64:33:0:0:0:0:0:0:0:::: T2Mi :: {provider} :: pid {marker_pid} :: Satellite {satellite} ::\n'
+        content += f'#DESCRIPTION :: T2Mi :: {provider} :: pid {marker_pid} :: Satellite {satellite} ::\n'
+        for ch in channels:
+            sid_hex = format(ch['sid'], 'X')
+            service_line = f'#SERVICE 1:0:1:{sid_hex}:{tsid}:{onid}:0:0:0:0:{encoded_url}:{ch["name"]}\n'
+            desc_line = f'#DESCRIPTION {ch["name"]}\n'
+            content += service_line + desc_line
+        # Upis
+        if os.path.exists(bouquet_path):
+            with open(bouquet_path, 'a') as f:
+                f.write(content)
+            print("[SatelliteAnalyzer] Appended new T2MI block to bouquet")
+        else:
+            with open(bouquet_path, 'w') as f:
+                f.write('#NAME ##( T2MI Channels )##\n')
+                f.write(content)
+            print("[SatelliteAnalyzer] Created new bouquet file")
+        bouquets_tv_path = '/etc/enigma2/bouquets.tv'
+        add_line = '#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "userbouquet.buket_t2mi.tv" ORDER BY bouquet\n'
+        if os.path.exists(bouquets_tv_path):
+            with open(bouquets_tv_path, 'r') as f:
+                bouquets_data = f.read()
+            if add_line not in bouquets_data:
+                with open(bouquets_tv_path, 'a') as f:
+                    f.write(add_line)
+                print("[SatelliteAnalyzer] Added bouquet reference to bouquets.tv")
+        eDVBDB.getInstance().reloadBouquets()
+        self.session.open(MessageBox, _("Bouquet created/appended and reloaded successfully!"), MessageBox.TYPE_INFO)
