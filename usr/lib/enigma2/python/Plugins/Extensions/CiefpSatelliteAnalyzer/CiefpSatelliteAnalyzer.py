@@ -16,6 +16,7 @@ import subprocess
 import time
 import re
 
+
 class AstraAnalyzeScreen(Screen):
     skin = """
     <screen name="AstraAnalyzeScreen" position="center,center" size="1800,900" title="..:: Astra-SM Analyze Results ::..">
@@ -80,7 +81,6 @@ class AstraAnalyzeScreen(Screen):
             os.makedirs(dir_path, exist_ok=True)
             pid_str = f"pid{self.pid}" if self.pid else "no_pid"
             date_str = time.strftime('%Y%m%d')
-            # Dohvati provajdera iz analyze_output
             provider = "Unknown"
             for line in self.analyze_output:
                 if 'Provider:' in line:
@@ -88,7 +88,6 @@ class AstraAnalyzeScreen(Screen):
                     if provider_match:
                         provider = provider_match.group(1).strip().replace(" ", "_")
                         break
-            # Dohvati satelit
             satellite = "Unknown"
             service = self.session.nav.getCurrentService()
             if service:
@@ -201,7 +200,6 @@ class AbertisAnalyzeScreen(Screen):
             os.makedirs(dir_path, exist_ok=True)
             pid_str = f"pid{self.pid}" if self.pid else "no_pid"
             date_str = time.strftime('%Y%m%d')
-            # Dohvati provajdera iz analyze_output
             provider = "Unknown"
             for line in self.analyze_output:
                 if 'Provider:' in line:
@@ -209,7 +207,6 @@ class AbertisAnalyzeScreen(Screen):
                     if provider_match:
                         provider = provider_match.group(1).strip().replace(" ", "_")
                         break
-            # Dohvati satelit
             satellite = "Unknown"
             service = self.session.nav.getCurrentService()
             if service:
@@ -337,7 +334,7 @@ class SatelliteAnalyzer(Screen):
         self.astra_options = [
             ("4095 - c:150fff", "t2mi://#t2mi_pid=4095&t2mi_input=http://127.0.0.1:8001/-----:", "4095"),
             ("4096 - c:151000", "t2mi://#t2mi_pid=4096&t2mi_input=http://127.0.0.1:8001/-----:", "4096"),
-            ("4096 - c:151000 plp2", "t2mi://#t2mi_pid=4096&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:", "4096_plp2"),
+            ("4096 - c:koscreen:151000 plp2", "t2mi://#t2mi_pid=4096&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:", "4096_plp2"),
             ("4097 - c:151001", "t2mi://#t2mi_pid=4097&t2mi_input=http://127.0.0.1:8001/-----:", "4097"),
             ("4706 - c:151262", "t2mi://#t2mi_pid=4706&t2mi_input=http://127.0.0.1:8001/-----:", "4706"),
             ("4716 - c:15126C", "t2mi://#t2mi_pid=4716&t2mi_input=http://127.0.0.1:8001/-----:", "4716"),
@@ -350,7 +347,7 @@ class SatelliteAnalyzer(Screen):
 
         self.abertis_pids = [
             "301", "303", "420", "421", "423", "701", "702", "703", "801",
-            "2025", "2026", "2027", "2027", "2028", "2050", "2060", "2270", "2271",
+            "2025", "2026", "2027", "2028", "2050", "2060", "2270", "2271",
             "2272", "2273", "2274", "2302", "2303", "2305", "2306", "2308",
             "2520", "2521", "2522", "2523", "2524", "8000", "8001", "8002",
             "8003", "8004", "8005", "8006"
@@ -1026,41 +1023,59 @@ class SatelliteAnalyzer(Screen):
         import re, os
         if not os.path.exists(conf_path):
             print(f"[parse_astra_conf] File not found: {conf_path}")
-            return {}
+            return {"t2mi": {}, "abertis": {}}
         with open(conf_path, "r") as f:
             conf_content = f.read()
+        
+        # T2MI blokovi
         t2mi_blocks = re.findall(
             r'(\w+)\s*=\s*make_t2mi_decap\(\{([^}]*)\}\)',
             conf_content, re.DOTALL | re.IGNORECASE
         )
         print(f"[parse_astra_conf] Found {len(t2mi_blocks)} t2mi_decap blocks")
-        result = {}
+        result = {"t2mi": {}, "abertis": {}}
         for var_name, body in t2mi_blocks:
             pid = re.search(r'pid\s*=\s*(\d+)', body)
             name = re.search(r'name\s*=\s*"([^"]+)"', body)
-            result[var_name] = {
+            result["t2mi"][var_name] = {
                 "pid": pid.group(1) if pid else None,
                 "name": name.group(1) if name else var_name,
                 "output": None
             }
-            print(f"[parse_astra_conf] Added block var={var_name} pid={result[var_name]['pid']} name={result[var_name]['name']}")
+            print(f"[parse_astra_conf] Added T2MI block var={var_name} pid={result['t2mi'][var_name]['pid']} name={result['t2mi'][var_name]['name']}")
+
+        # Abertis i T2MI channel blokovi
         channel_blocks = re.findall(
             r'make_channel\(\{(.*?)\}\)',
             conf_content, re.DOTALL | re.IGNORECASE
         )
         print(f"[parse_astra_conf] Found {len(channel_blocks)} make_channel blocks")
         for body in channel_blocks:
-            input_match = re.search(r't2mi://(\w+)', body)
+            name_match = re.search(r'name\s*=\s*"([^"]+)"', body)
+            input_match = re.search(r'input\s*=\s*\{[^"]*"([^"]+)"', body, re.DOTALL)
             output_match = re.search(r'output\s*=\s*\{[^"]*"([^"]+)"', body, re.DOTALL)
-            if input_match:
-                ref = input_match.group(1)
-                if output_match:
-                    output_url = output_match.group(1)
-                    if ref in result:
-                        result[ref]["output"] = output_url
-                        print(f"[parse_astra_conf] Linked {ref} -> {output_url}")
+            transform_match = re.search(r'transform\s*=\s*\{\{[^}]*format\s*=\s*"pipe"', body, re.DOTALL)
+            is_abertis = transform_match and "abertis" in output_match.group(1).lower() if output_match and transform_match else False
+            name = name_match.group(1) if name_match else "Unknown"
+            if input_match and output_match:
+                ref = input_match.group(1).split("/")[-1].replace(":", "")
+                output_url = output_match.group(1)
+                if is_abertis:
+                    pid_match = re.search(r'pid(\d+)', output_url)
+                    pid = pid_match.group(1) if pid_match else None
+                    result["abertis"][ref] = {
+                        "pid": pid,
+                        "name": name,
+                        "output": output_url
+                    }
+                    print(f"[parse_astra_conf] Added Abertis block ref={ref} pid={pid} name={name} -> {output_url}")
                 else:
-                    print(f"[parse_astra_conf] Found input {ref} but no output in block!")
+                    for t2mi_ref, t2mi_data in result["t2mi"].items():
+                        if t2mi_ref in input_match.group(1):
+                            t2mi_data["output"] = output_url
+                            print(f"[parse_astra_conf] Linked T2MI {t2mi_ref} -> {output_url}")
+            else:
+                print(f"[parse_astra_conf] Found input but no output in block: {body[:50]}...")
         return result
 
     def createBouquet(self):
@@ -1075,7 +1090,8 @@ class SatelliteAnalyzer(Screen):
             return
         choices = []
         for log in sorted(logs):
-            choices.append((log, log))
+            log_type = "Abertis" if "abertis_analyze" in log else "T2MI"
+            choices.append((f"{log} ({log_type})", (log, log_type)))
         self.session.openWithCallback(
             self.logSelected,
             ChoiceBox,
@@ -1086,25 +1102,25 @@ class SatelliteAnalyzer(Screen):
     def logSelected(self, choice):
         if not choice:
             return
-        log_file = choice[1]
+        log_file, log_type = choice[1]
         self.selected_log_file = log_file
-        print(f"[SatelliteAnalyzer] User selected log: {log_file}")
+        print(f"[SatelliteAnalyzer] User selected log: {log_file} ({log_type})")
         blocks = self.parse_astra_conf()
-        if not blocks:
-            self.session.open(MessageBox, _("No T2MI blocks found in astra.conf!"), MessageBox.TYPE_ERROR)
+        if not blocks[log_type.lower()]:
+            self.session.open(MessageBox, _(f"No {log_type} blocks found in astra.conf!"), MessageBox.TYPE_ERROR)
             return
         choices = []
-        for ref, data in blocks.items():
+        for ref, data in blocks[log_type.lower()].items():
             if data["output"]:
                 label = f"{data['name']} (pid {data['pid']}) -> {data['output']}"
                 choices.append((label, ref))
         if not choices:
-            self.session.open(MessageBox, _("No usable T2MI blocks with output found!"), MessageBox.TYPE_ERROR)
+            self.session.open(MessageBox, _(f"No usable {log_type} blocks with output found!"), MessageBox.TYPE_ERROR)
             return
         self.session.openWithCallback(
             self.blockSelected,
             ChoiceBox,
-            title="Select T2MI block from astra.conf",
+            title=f"Select {log_type} block from astra.conf",
             list=choices
         )
 
@@ -1118,22 +1134,26 @@ class SatelliteAnalyzer(Screen):
 
     def processSelectedLog(self, log_file, block_ref):
         import re, os
-        from urllib.parse import quote
+        from urllib.parse import quote, unquote
         from enigma import eDVBDB
         log_path = os.path.join("/tmp/CiefpSatelliteAnalyzer", log_file)
         if not os.path.exists(log_path):
             self.session.open(MessageBox, _("Selected log file not found!"), MessageBox.TYPE_ERROR)
             return
         blocks = self.parse_astra_conf()
-        if block_ref not in blocks or not blocks[block_ref]["output"]:
-            self.session.open(MessageBox, _("Selected T2MI block not found in astra.conf!"), MessageBox.TYPE_ERROR)
+        log_type = "abertis" if "abertis_analyze" in log_file else "t2mi"
+        if block_ref not in blocks[log_type] or not blocks[log_type][block_ref]["output"]:
+            self.session.open(MessageBox, _(f"Selected {log_type} block not found in astra.conf!"),
+                              MessageBox.TYPE_ERROR)
             return
-        matched = blocks[block_ref]
+        matched = blocks[log_type][block_ref]
         base_url = matched["output"]
         marker_pid = matched["pid"]
         print(f"[SatelliteAnalyzer] Using block {block_ref}: pid={marker_pid}, url={base_url}")
-        # Dohvati informaciju o satelitu
+
+        # Dohvati informaciju o satelitu i frekvenciji
         satellite = "Unknown"
+        frequency = 0
         service = self.session.nav.getCurrentService()
         if service:
             frontendInfo = service.frontendInfo()
@@ -1143,58 +1163,171 @@ class SatelliteAnalyzer(Screen):
                     try:
                         orbital_pos = frontendData.get("orbital_position", 0)
                         satellite = self.formatOrbitalPos(orbital_pos)
+                        frequency = frontendData.get("frequency", 0) // 1000  # Frekvencija u MHz
                     except Exception as e:
                         print(f"[SatelliteAnalyzer] Error getting satellite info: {str(e)}")
                         satellite = "Unknown"
-        # Parsiraj log fajl
-        channels = []
+                        frequency = 0
+
+        # Parsiraj log fajl i prikupi kanale
+        new_channels = []
         sid = service = provider = None
         with open(log_path, "r") as f:
             for line in f:
                 if 'sid:' in line:
-                    sid = re.search(r'sid:\s*(\d+)', line).group(1)
+                    sid = re.search(r'sid:\s*(\d+)', line)
+                    if sid:
+                        sid = sid.group(1)
                 elif 'Service:' in line:
-                    service = re.search(r'Service:\s*(.+)', line).group(1).strip()
+                    service = re.search(r'Service:\s*(.+)', line)
+                    if service:
+                        service = service.group(1).strip()
                 elif 'Provider:' in line and sid and service:
-                    provider = re.search(r'Provider:\s*(.+)', line).group(1).strip()
-                    channels.append({'sid': int(sid), 'name': service, 'provider': provider})
+                    provider_match = re.search(r'Provider:\s*(.*)', line)
+                    provider = provider_match.group(1).strip() if provider_match and provider_match.group(
+                        1).strip() else "RTVE"
+                    # Proširena heuristika za detekciju radio kanala
+                    radio_keywords = ["Radio", "RNE", "FM", "AM", "Cadena", "SER", "Onda Cero", "COPE"]
+                    is_radio = any(keyword in service for keyword in radio_keywords)
+                    channel_type = "RADIO" if is_radio else "TV"
+                    # Loguj kanale koji nisu jasno klasifikovani kao radio
+                    if not is_radio and not ("TV" in service or "HD" in service):
+                        print(
+                            f"[SatelliteAnalyzer] Warning: Channel '{service}' classified as TV by default (no clear radio indicator)")
+                    new_channels.append({
+                        'sid': int(sid),
+                        'name': service,
+                        'provider': provider,
+                        'type': channel_type,
+                        'pid': marker_pid,
+                        'url': base_url
+                    })
                     sid = service = provider = None
-        if not channels:
+
+        if not new_channels:
             self.session.open(MessageBox, _("No channels found in selected log!"), MessageBox.TYPE_ERROR)
             return
-        # Uzmi prvog provajdera iz kanala
-        provider = channels[0]['provider'].replace(" ", "_") if channels else "Unknown"
-        # Generiši sadržaj
-        bouquet_path = '/etc/enigma2/userbouquet.buket_t2mi.tv'
-        tsid = '2DE3'
-        onid = '30'
-        namespace = '300000'
-        encoded_url = base_url.replace(":", "%3a")
-        content = f'#SERVICE 1:64:33:0:0:0:0:0:0:0:::: T2Mi :: {provider} :: pid {marker_pid} :: Satellite {satellite} ::\n'
-        content += f'#DESCRIPTION :: T2Mi :: {provider} :: pid {marker_pid} :: Satellite {satellite} ::\n'
-        for ch in channels:
-            sid_hex = format(ch['sid'], 'X')
-            service_line = f'#SERVICE 1:0:1:{sid_hex}:{tsid}:{onid}:0:0:0:0:{encoded_url}:{ch["name"]}\n'
-            desc_line = f'#DESCRIPTION {ch["name"]}\n'
-            content += service_line + desc_line
-        # Upis
+
+        # Učitaj postojeće kanale iz buketa
+        bouquet_path = '/etc/enigma2/userbouquet.buket_t2mi.tv' if log_type == "t2mi" else '/etc/enigma2/userbouquet.buket_abertis.tv'
+        existing_channels = []
+        existing_content = ""
         if os.path.exists(bouquet_path):
-            with open(bouquet_path, 'a') as f:
-                f.write(content)
-            print("[SatelliteAnalyzer] Appended new T2MI block to bouquet")
-        else:
-            with open(bouquet_path, 'w') as f:
-                f.write('#NAME ##( T2MI Channels )##\n')
-                f.write(content)
-            print("[SatelliteAnalyzer] Created new bouquet file")
+            with open(bouquet_path, 'r') as f:
+                existing_content = f.read()
+            # Parsiraj postojeće kanale
+            lines = existing_content.splitlines()
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                if '#SERVICE' in line and '#####' not in line:
+                    # Fleksibilniji regex za rukovanje varijacijama u formatu
+                    service_match = re.search(
+                        r'#SERVICE 1:0:([12]):([0-9A-F]+):([0-9A-F]+):([0-9A-F]+):0:0:0:0:(.*?):(.+)', line)
+                    if service_match:
+                        service_type, sid_hex, tsid, onid, url, name = service_match.groups()
+                        # Očisti višestruke PID-ove i tip iz imena (npr. (TV) La 1 HD (2025) -> La 1 HD)
+                        clean_name = re.sub(r'^\s*\((?:TV|RADIO)\)\s*|\s*\(\d+\)(?:\s*\(\d+\))*\s*$', '', name).strip()
+                        # Pokušaj izvući PID iz imena kanala
+                        pid_match = re.search(r'\((\d+)\)$', name)
+                        pid = pid_match.group(1) if pid_match else "Unknown"
+                        # Pokušaj izvući tip iz imena kanala ili na osnovu service_type
+                        type_match = re.search(r'^\((TV|RADIO)\)\s*', name)
+                        channel_type = type_match.group(1) if type_match else ("RADIO" if service_type == "2" else "TV")
+                        # Dekodiraj URL kako bismo izbegli višestruko enkodiranje
+                        url = unquote(url)
+                        existing_channels.append({
+                            'sid': int(sid_hex, 16),
+                            'tsid': tsid,
+                            'onid': onid,
+                            'url': url,
+                            'name': clean_name,
+                            'type': channel_type,
+                            'pid': pid
+                        })
+                    else:
+                        print(f"[SatelliteAnalyzer] Warning: Skipping invalid SERVICE line: {line}")
+                i += 1
+
+        # Kombinuj nove kanale sa postojećim, ažuriraj tip ako je potrebno
+        all_channels = []
+        existing_keys = {(ch['sid'], ch['tsid'], ch['onid'], ch['url'], ch['name']) for ch in existing_channels}
+        for ch in new_channels:
+            key = (ch['sid'], format(frequency, 'X') if frequency else '2DE3', format(int(ch['pid']), 'X'), ch['url'],
+                   ch['name'])
+            # Ako kanal već postoji, ažuriraj njegov tip i PID
+            for existing_ch in existing_channels:
+                if (existing_ch['sid'], existing_ch['tsid'], existing_ch['onid'], existing_ch['url'],
+                    existing_ch['name']) == key:
+                    existing_ch['type'] = ch['type']  # Ažuriraj tip (TV/RADIO)
+                    existing_ch['pid'] = ch['pid']  # Ažuriraj PID ako je potrebno
+                    break
+            else:
+                # Ako kanal nije pronađen, dodaj ga kao nov
+                all_channels.append({
+                    'sid': ch['sid'],
+                    'tsid': format(frequency, 'X') if frequency else '2DE3',
+                    'onid': format(int(ch['pid']), 'X'),
+                    'url': ch['url'],
+                    'name': ch['name'],
+                    'type': ch['type'],
+                    'pid': ch['pid']
+                })
+        # Dodaj sve postojeće kanale u all_channels
+        all_channels.extend(existing_channels)
+
+        # Sortiraj kanale po PID-u, pa po SID-u radi konzistentnosti
+        all_channels.sort(key=lambda x: (x['pid'], x['sid']))
+
+        # Generiši sadržaj buketa grupisan po PID-ovima
+        tsid = format(frequency, 'X') if frequency else '2DE3'  # TSID je frekvencija u hex
+        namespace = '300000'
+        content = '#NAME ##( Abertis DTT Sat )##\n'
+
+        # Grupisanje kanala po PID-u
+        from collections import defaultdict
+        channels_by_pid = defaultdict(list)
+        for ch in all_channels:
+            channels_by_pid[ch['pid']].append(ch)
+
+        # Generiši linije za svaki PID
+        for pid in sorted(channels_by_pid.keys()):
+            if pid == "Unknown":
+                continue  # Preskoči kanale bez poznatog PID-a
+            content += f'#SERVICE 1:64:{pid}:0:0:0:0:0:0:0::##### Abertis PID {pid} #####\n'
+            content += f'#DESCRIPTION ##### Abertis PID {pid} #####\n'
+            for ch in channels_by_pid[pid]:
+                sid_hex = format(ch['sid'], 'X')
+                # Koristi 1 za TV, 2 za RADIO
+                service_type = "2" if ch["type"] == "RADIO" else "1"
+                service_line = f'#SERVICE 1:0:{service_type}:{sid_hex}:{ch["tsid"]}:{ch["onid"]}:0:0:0:0:{quote(unquote(ch["url"]), safe="/")}:({ch["type"]}) {ch["name"]} ({ch["pid"]})\n'
+                desc_line = f'#DESCRIPTION ({ch["type"]}) {ch["name"]} ({ch["pid"]})\n'
+                content += service_line + desc_line
+
+        # Upis u buket
+        with open(bouquet_path, 'w') as f:
+            f.write(content)
+        print(f"[SatelliteAnalyzer] Created/updated {log_type} bouquet file")
+
+        # Ažuriraj bouquets.tv
         bouquets_tv_path = '/etc/enigma2/bouquets.tv'
-        add_line = '#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "userbouquet.buket_t2mi.tv" ORDER BY bouquet\n'
+        bouquet_name = 'userbouquet.buket_abertis.tv' if log_type == "abertis" else 'userbouquet.buket_t2mi.tv'
+        add_line = f'#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "{bouquet_name}" ORDER BY bouquet\n'
         if os.path.exists(bouquets_tv_path):
             with open(bouquets_tv_path, 'r') as f:
                 bouquets_data = f.read()
             if add_line not in bouquets_data:
                 with open(bouquets_tv_path, 'a') as f:
                     f.write(add_line)
-                print("[SatelliteAnalyzer] Added bouquet reference to bouquets.tv")
+                print(f"[SatelliteAnalyzer] Added {log_type} bouquet reference to bouquets.tv")
+
+        # Osveži bukete
         eDVBDB.getInstance().reloadBouquets()
-        self.session.open(MessageBox, _("Bouquet created/appended and reloaded successfully!"), MessageBox.TYPE_INFO)
+        self.session.openWithCallback(
+            lambda x: None,  # Callback koji ne radi ništa
+            MessageBox,
+            _(f"{log_type.capitalize()} bouquet created/updated and reloaded successfully!"),
+            MessageBox.TYPE_INFO,
+            timeout=5,
+            default=True
+        )
