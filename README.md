@@ -25,8 +25,8 @@
 - **Fast satellite & transponder switching**
 
 ### Satellite Scanning
-- **Astra-SM (19.2°E)**: Full auto-scan of active SM transponders
-- **Abertis (DTT Spain)**: Scan on 30°W, 19.2°E, 5°W
+- **Astra-SM **: Full auto-scan of active SM transponders 5°W,9°E,16°E
+- **Abertis (DTT Spain)**: Scan on 30°W
 - **Blind scan support** for unknown frequencies
 - **Provider filtering** (Canal+, Movistar+, etc.)
 
@@ -95,7 +95,7 @@ init 4 && sleep 2 && init 3
 
 ### 3. Scan Abertis
 - **Blue button → Scan Abertis**
-- Choose satellite: `30°W`, `19.2°E`, `5°W`
+- Choose satellite: `30°W`
 - Detects DTT multiplexes
 - Bouquet created: `Abertis DTT [Spain]`
 
