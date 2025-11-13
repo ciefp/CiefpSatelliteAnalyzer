@@ -108,9 +108,10 @@ init 4 && sleep 2 && init 3
 
 ## Screenshots
 
-![Analyzer](https://via.placeholder.com/800x450.png?text=CiefpSatelliteAnalyzer+-+Signal+Analysis)
-![Astra-SM Scan](https://via.placeholder.com/800x450.png?text=Astra--SM+Scanning)
-![Bouquet](https://via.placeholder.com/800x450.png?text=Generated+Bouquet)
+![Analyzer](https://github.com/ciefp/CiefpSatelliteAnalyzer/blob/main/screenshot1.jpg)
+![Astra-SM Scan](https://github.com/ciefp/CiefpSatelliteAnalyzer/blob/main/screenshot2.jpg))
+![Astra-SM Scan](https://github.com/ciefp/CiefpSatelliteAnalyzer/blob/main/screenshot3.jpg)
+![Bouquet](https://github.com/ciefp/CiefpSatelliteAnalyzer/blob/main/screenshot4.jpg)
 
 > *Add real screenshots to `/docs/` folder!*
 
