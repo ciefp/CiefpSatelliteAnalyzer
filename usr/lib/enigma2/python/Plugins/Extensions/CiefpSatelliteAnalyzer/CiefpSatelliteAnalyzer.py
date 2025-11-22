@@ -101,10 +101,21 @@ class AstraAnalyzeScreen(Screen):
                         except Exception as e:
                             print(f"[AstraAnalyzeScreen] Error getting satellite info: {str(e)}")
                             satellite = "Unknown"
-            filename = f"{dir_path}/astra_analyze_{provider}_{satellite}_{date_str}_{pid_str}.log"
+
+            # Novi format naziva za T2MI
+            base_filename = f"t2mi_{provider}_{satellite}_{date_str}_{pid_str}.log"
+            counter = 1
+            filename = os.path.join(dir_path, base_filename)
+
+            # Proveri da li fajl već postoji i dodaj redni broj
+            while os.path.exists(filename):
+                base_name = f"t2mi_{counter}_{provider}_{satellite}_{date_str}_{pid_str}.log"
+                filename = os.path.join(dir_path, base_name)
+                counter += 1
+
             with open(filename, 'w') as f:
                 f.write("\n".join(self.analyze_output))
-            self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
+            self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO, timeout=5)
         except Exception as e:
             print(f"[AstraAnalyzeScreen] Error saving file: {str(e)}")
             self.session.open(MessageBox, f"Error saving file:\n{str(e)}", MessageBox.TYPE_ERROR)
@@ -220,10 +231,21 @@ class AbertisAnalyzeScreen(Screen):
                         except Exception as e:
                             print(f"[AbertisAnalyzeScreen] Error getting satellite info: {str(e)}")
                             satellite = "Unknown"
-            filename = f"{dir_path}/abertis_analyze_{provider}_{satellite}_{date_str}_{pid_str}.log"
+
+            # Novi format naziva za Abertis
+            base_filename = f"abertis_{provider}_{satellite}_{date_str}_{pid_str}.log"
+            counter = 1
+            filename = os.path.join(dir_path, base_filename)
+
+            # Proveri da li fajl već postoji i dodaj redni broj
+            while os.path.exists(filename):
+                base_name = f"abertis_{counter}_{provider}_{satellite}_{date_str}_{pid_str}.log"
+                filename = os.path.join(dir_path, base_name)
+                counter += 1
+
             with open(filename, 'w') as f:
                 f.write("\n".join(self.analyze_output))
-            self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO)
+            self.session.open(MessageBox, f"Results saved to:\n{filename}", MessageBox.TYPE_INFO, timeout=5)
         except Exception as e:
             print(f"[AbertisAnalyzeScreen] Error saving file: {str(e)}")
             self.session.open(MessageBox, f"Error saving file:\n{str(e)}", MessageBox.TYPE_ERROR)
@@ -254,6 +276,408 @@ class AbertisAnalyzeScreen(Screen):
         except Exception as e:
             print(f"[AbertisAnalyzeScreen] Error in stopAnalysis: {str(e)}")
             self.session.open(MessageBox, f"Error stopping analysis: {str(e)}", MessageBox.TYPE_ERROR)
+
+
+class T2MIDecapConfigScreen(Screen):
+    skin = """
+    <screen name="T2MIDecapConfigScreen" position="center,center" size="1800,900" title="..:: Add T2MI Decap Block ::..">
+        <eLabel position="0,0" size="1800,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget source="Title" render="Label" position="20,20" size="1760,50" 
+                font="Regular;30" halign="center" valign="center" foregroundColor="white" />
+
+        <!-- Tabela sa poljima -->
+        <widget name="config" position="50,100" size="1700,600" 
+                font="Regular;24" transparent="1" foregroundColor="white" />
+
+        <!-- Status bar -->
+        <widget name="status" position="50,720" size="1700,30" 
+                font="Regular;20" halign="center" foregroundColor="yellow" />
+
+        <!-- Dugmad -->
+        <widget name="key_red" position="100,780" size="320,40" 
+                backgroundColor="red" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+        <widget name="key_green" position="500,780" size="320,40" 
+                backgroundColor="green" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+        <widget name="key_yellow" position="900,780" size="320,40" 
+                backgroundColor="yellow" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+        <widget name="key_blue" position="1300,780" size="320,40" 
+                backgroundColor="blue" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+    </screen>
+    """
+
+    def __init__(self, session, parent):
+        Screen.__init__(self, session)
+        self.parent = parent
+        self.config_list = []
+        self["config"] = ScrollLabel("")
+        self["status"] = Label(_("Fill in the fields and navigate with arrow keys"))
+        self["key_red"] = Button(_("Exit"))
+        self["key_green"] = Button(_("OK"))
+        self["key_yellow"] = Button(_("Preview"))
+        self["key_blue"] = Button(_("Save to astra.conf"))
+
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
+                                    {
+                                        "ok": self.keyOK,
+                                        "cancel": self.keyCancel,
+                                        "red": self.keyCancel,
+                                        "green": self.keyOK,
+                                        "yellow": self.previewConfig,
+                                        "blue": self.saveConfig,
+                                        "up": self.keyUp,
+                                        "down": self.keyDown,
+                                        "left": self.keyLeft,
+                                        "right": self.keyRight,
+                                    }, -2)
+
+        # Predefinisane vrednosti
+        self.plp_options = ["0", "1", "2"]
+        self.pnr_options = ["0"]
+        self.pid_options = ["4095", "4096", "4097", "custom_pid"]
+
+        # Trenutni kanal info
+        self.current_service_ref = self.parent.getServiceReference()
+        self.current_channel_name = self.getCurrentChannelName()
+
+        # Inicijalne vrednosti - ISPRAVLJENO: localhost -> 127.0.0.1
+        self.current_values = {
+            'header': '',  # NOVO POLJE ZA ZAGLAVLJE
+            'decap_name': 't2mi_dasto_plp0',
+            'channel_name': self.current_channel_name,
+            'input_url': f'http://127.0.0.1:8001/{self.current_service_ref}',  # ISPRAVLJENO
+            'plp': '0',
+            'pnr': '0',
+            'pid': '4095',
+            'custom_pid': '',
+            'output_path': 'dastoplp0'
+        }
+
+        self.current_field = 0
+        self.fields = [
+            {'name': 'Add Header', 'key': 'header', 'type': 'text'},  # NOVO POLJE
+            {'name': 'Decap variable name', 'key': 'decap_name', 'type': 'text'},
+            {'name': 'Channel name', 'key': 'channel_name', 'type': 'text'},
+            {'name': 'Input URL', 'key': 'input_url', 'type': 'text'},
+            {'name': 'PLP', 'key': 'plp', 'type': 'options', 'options': self.plp_options},
+            {'name': 'PNR', 'key': 'pnr', 'type': 'options', 'options': self.pnr_options},
+            {'name': 'PID', 'key': 'pid', 'type': 'options', 'options': self.pid_options},
+            {'name': 'Custom PID', 'key': 'custom_pid', 'type': 'text'},
+            {'name': 'Output path', 'key': 'output_path', 'type': 'text'}
+        ]
+
+        self.updateDisplay()
+
+    def getCurrentChannelName(self):
+        """Dobijanje naziva trenutnog kanala"""
+        service = self.session.nav.getCurrentService()
+        if service:
+            info = service.info()
+            if info:
+                name = info.getName()
+                if name:
+                    return name
+        return "Unknown Channel"
+
+    def updateDisplay(self):
+        """Ažuriranje prikaza tabele"""
+        display_text = ""
+        for i, field in enumerate(self.fields):
+            value = self.current_values[field['key']]
+            marker = " > " if i == self.current_field else "   "
+
+            if field['type'] == 'options':
+                display_text += f"{marker}{field['name']}: [{value}]\n"
+            else:
+                display_text += f"{marker}{field['name']}: {value}\n"
+
+        self["config"].setText(display_text)
+
+    def keyOK(self):
+        """Enter dugme za editovanje polja"""
+        current_field = self.fields[self.current_field]
+
+        if current_field['type'] == 'text':
+            # Otvori virtualnu tastaturu za unos teksta
+            from Screens.VirtualKeyBoard import VirtualKeyBoard
+            self.session.openWithCallback(
+                self.textEntered,
+                VirtualKeyBoard,
+                title=_(f"Enter {current_field['name']}"),
+                text=self.current_values[current_field['key']]
+            )
+        elif current_field['type'] == 'options':
+            # Prikaži opcije u ChoiceBox-u
+            choices = [(opt, opt) for opt in current_field['options']]
+            self.session.openWithCallback(
+                self.optionSelected,
+                ChoiceBox,
+                title=_(f"Select {current_field['name']}"),
+                list=choices
+            )
+
+    def textEntered(self, result):
+        """Callback za unos teksta"""
+        if result:
+            current_field = self.fields[self.current_field]
+
+            # Ako je input_url polje, automatski zameni localhost sa 127.0.0.1
+            if current_field['key'] == 'input_url':
+                result = result.replace('localhost', '127.0.0.1')
+
+            self.current_values[current_field['key']] = result
+            self.updateDisplay()
+
+    def optionSelected(self, result):
+        """Callback za izbor opcije"""
+        if result:
+            current_field = self.fields[self.current_field]
+            self.current_values[current_field['key']] = result[1]
+
+            # Ako je izabran custom_pid, prikaži custom polje
+            if current_field['key'] == 'pid' and result[1] == 'custom_pid':
+                # Pomeri se na custom_pid polje
+                self.current_field = 6  # Index custom_pid polja
+            elif current_field['key'] == 'pid' and result[1] != 'custom_pid':
+                # Reset custom_pid ako nije izabran custom
+                self.current_values['custom_pid'] = ''
+
+            self.updateDisplay()
+
+    def keyUp(self):
+        """Strelica gore"""
+        if self.current_field > 0:
+            self.current_field -= 1
+            self.updateDisplay()
+
+    def keyDown(self):
+        """Strelica dole"""
+        if self.current_field < len(self.fields) - 1:
+            self.current_field += 1
+            self.updateDisplay()
+
+    def keyLeft(self):
+        """Strelica levo - za opcije"""
+        current_field = self.fields[self.current_field]
+        if current_field['type'] == 'options':
+            current_value = self.current_values[current_field['key']]
+            options = current_field['options']
+            current_index = options.index(current_value) if current_value in options else 0
+            new_index = (current_index - 1) % len(options)
+            self.current_values[current_field['key']] = options[new_index]
+
+            # Ako je PID promenjen
+            if current_field['key'] == 'pid':
+                if options[new_index] != 'custom_pid':
+                    self.current_values['custom_pid'] = ''
+
+            self.updateDisplay()
+
+    def keyRight(self):
+        """Strelica desno - za opcije"""
+        current_field = self.fields[self.current_field]
+        if current_field['type'] == 'options':
+            current_value = self.current_values[current_field['key']]
+            options = current_field['options']
+            current_index = options.index(current_value) if current_value in options else 0
+            new_index = (current_index + 1) % len(options)
+            self.current_values[current_field['key']] = options[new_index]
+
+            # Ako je PID promenjen
+            if current_field['key'] == 'pid':
+                if options[new_index] != 'custom_pid':
+                    self.current_values['custom_pid'] = ''
+
+            self.updateDisplay()
+
+    def previewConfig(self):
+        """Prikaz konfiguracije pre čuvanja"""
+        config_text = self.generateConfig()
+        self.session.open(MessageBox, config_text, MessageBox.TYPE_INFO, timeout=30)
+
+    def generateConfig(self):
+        """Generisanje koda za astra.conf - LEPŠE FORMATIRANJE"""
+        # Automatski zameni localhost sa 127.0.0.1 u input URL-u
+        input_url = self.current_values['input_url'].replace('localhost', '127.0.0.1')
+
+        # Koristi custom_pid ako je izabran, inače koristi izabrani PID
+        pid_value = self.current_values['custom_pid'] if self.current_values['pid'] == 'custom_pid' else \
+        self.current_values['pid']
+
+        # Dodaj header ako je unet
+        header_text = ""
+        if self.current_values['header']:
+            header_text = f"-- {self.current_values['header']}\n\n"
+
+        # LEPŠE FORMATIRANJE sa 4 spaces umesto 2
+        config = f"""{header_text}{self.current_values['decap_name']} = make_t2mi_decap({{
+        name = "{self.current_values['channel_name']}",
+        input = "{input_url}",
+        plp = {self.current_values['plp']},
+        pnr = {self.current_values['pnr']},
+        pid = {pid_value},
+    }})
+
+    make_channel({{
+        name = "{self.current_values['channel_name']}",
+        input = {{ "t2mi://{self.current_values['decap_name']}", }},
+        output = {{ "http://0.0.0.0:9999/{self.current_values['output_path']}", }},
+    }})
+    """
+        return config
+
+    def saveConfig(self):
+        """Čuvanje konfiguracije u astra.conf - SA REBOOT UPRAZORENJEM"""
+        try:
+            config_text = self.generateConfig()
+            conf_path = "/etc/astra/astra.conf"
+
+            # Proveri da li direktorijum postoji
+            os.makedirs(os.path.dirname(conf_path), exist_ok=True)
+
+            # Dodaj u fajl (append mode)
+            with open(conf_path, "a") as f:
+                f.write("\n" + config_text)
+
+            # PITAJ KORISNIKA DA LI ŽELI REBOOT
+            message = _("✅ Configuration saved to astra.conf!\n\n") + \
+                      _("⚠️  FULL SYSTEM REBOOT REQUIRED  ⚠️\n\n") + \
+                      _("Astra-SM will load the new configuration only after system reboot.\n\n") + \
+                      _("Do you want to reboot now?")
+
+            self.session.openWithCallback(
+                self.rebootAfterSave,
+                MessageBox,
+                message,
+                MessageBox.TYPE_YESNO
+            )
+
+        except Exception as e:
+            self.session.open(MessageBox, _("Error saving configuration: ") + str(e), MessageBox.TYPE_ERROR)
+
+    def rebootAfterSave(self, result):
+        """Callback za reboot nakon čuvanja"""
+        if result:
+            # Snimi poruku pre rebota
+            self.session.open(
+                MessageBox,
+                _("System will now reboot...\nPlease wait 2-3 minutes for full restart."),
+                MessageBox.TYPE_INFO,
+                timeout=5
+            )
+            # Automatski reboot
+            import os
+            os.system("reboot")
+        else:
+            # Prikaži uputstvo za manual reboot
+            self.session.open(
+                MessageBox,
+                _("Remember to reboot system manually!\n\nGo to: Astra.conf menu → Reboot system"),
+                MessageBox.TYPE_INFO,
+                timeout=10
+            )
+            self.close()
+
+    def keyCancel(self):
+        self.close()
+
+class AstraConfViewScreen(Screen):
+    skin = """
+    <screen name="AstraConfViewScreen" position="center,center" size="1800,900" title="..:: astra.conf Viewer ::..">
+        <!-- Pozadina -->
+        <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <!-- Pozadina desno -->
+        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1400,0" size="400,500" />
+
+        <!-- Sadržaj astra.conf - ORIJENTISAN NA LEVO -->
+        <widget name="conf_content" position="20,20" size="1360,860" 
+                font="Console;18" transparent="1" foregroundColor="white" />
+
+        <!-- Naslov -->
+        <widget source="Title" render="Label" position="1400,520" size="400,50" 
+                font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
+
+        <!-- Dugmad -->
+        <widget name="key_red" position="1440,600" size="320,40" 
+                backgroundColor="red" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+        <widget name="key_green" position="1440,660" size="320,40" 
+                backgroundColor="green" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+        <widget name="key_yellow" position="1440,720" size="320,40" 
+                backgroundColor="yellow" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
+    </screen>
+    """
+
+    def __init__(self, session, content):
+        Screen.__init__(self, session)
+        self.content = content
+        self["conf_content"] = ScrollLabel("")
+        self["background2"] = Pixmap()
+        self["key_red"] = Button(_("Close"))
+        self["key_green"] = Button(_("Edit"))
+        self["key_yellow"] = Button(_("Save As"))
+
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"],
+                                    {
+                                        "ok": self.close,
+                                        "cancel": self.close,
+                                        "red": self.close,
+                                        "green": self.editConf,
+                                        "yellow": self.saveAs,
+                                        "up": self["conf_content"].pageUp,
+                                        "down": self["conf_content"].pageDown,
+                                        "left": self["conf_content"].pageUp,
+                                        "right": self["conf_content"].pageDown,
+                                    }, -2)
+
+        self.onLayoutFinish.append(self.showContent)
+
+    def showContent(self):
+        """Prikaz sadržaja astra.conf"""
+        self["conf_content"].setText(self.content)
+
+    def editConf(self):
+        """Editovanje astra.conf"""
+        from Screens.VirtualKeyBoard import VirtualKeyBoard
+        self.session.openWithCallback(
+            self.confEdited,
+            VirtualKeyBoard,
+            title=_("Edit astra.conf"),
+            text=self.content
+        )
+
+    def confEdited(self, result):
+        """Callback nakon editovanja"""
+        if result:
+            try:
+                conf_path = "/etc/astra/astra.conf"
+                with open(conf_path, "w") as f:
+                    f.write(result)
+                self.content = result
+                self["conf_content"].setText(self.content)
+                self.session.open(MessageBox, _("astra.conf updated!"), MessageBox.TYPE_INFO)
+            except Exception as e:
+                self.session.open(MessageBox, _("Error saving astra.conf: ") + str(e), MessageBox.TYPE_ERROR)
+
+    def saveAs(self):
+        """Čuvanje kopije astra.conf"""
+        from Screens.VirtualKeyBoard import VirtualKeyBoard
+        self.session.openWithCallback(
+            self.saveAsCallback,
+            VirtualKeyBoard,
+            title=_("Save as (enter filename)"),
+            text="astra_backup.conf"
+        )
+
+    def saveAsCallback(self, result):
+        """Callback za čuvanje kopije"""
+        if result:
+            try:
+                backup_path = f"/etc/astra/{result}"
+                with open(backup_path, "w") as f:
+                    f.write(self.content)
+                self.session.open(MessageBox, _("Backup saved as: ") + result, MessageBox.TYPE_INFO)
+            except Exception as e:
+                self.session.open(MessageBox, _("Error saving backup: ") + str(e), MessageBox.TYPE_ERROR)
 
 class SatelliteAnalyzer(Screen):
     skin = """
@@ -298,9 +722,9 @@ class SatelliteAnalyzer(Screen):
         self["astra_results"] = Label("")
         self["time"] = Label("")
         self["key_red"] = Label("Back")
-        self["key_green"] = Label("Create Bouquet")
-        self["key_yellow"] = Label("Astra Analyze")
-        self["key_blue"] = Label("Abertis Scan")
+        self["key_green"] = Label("Astra.conf")
+        self["key_yellow"] = Label("Astra-SM")
+        self["key_blue"] = Label("Abertis")
         self["background"] = Pixmap()
         self["snr_label"] = Label("SNR:")
         self["snr_bar"] = ProgressBar()
@@ -312,9 +736,9 @@ class SatelliteAnalyzer(Screen):
                                         "ok": self.close,
                                         "cancel": self.close,
                                         "red": self.close,
-                                        "green": self.createBouquet,
-                                        "yellow": self.startAstraAnalyze,
-                                        "blue": self.startAbertisAnalyze,
+                                        "green": self.astraConfFunctions,
+                                        "yellow": self.astraSmFunctions,
+                                        "blue": self.abertisFunctions,
                                         "up": self["info_left"].pageUp,
                                         "down": self["info_left"].pageDown,
                                     }, -2)
@@ -333,6 +757,14 @@ class SatelliteAnalyzer(Screen):
 
         self.astra_options = [
             ("4095 - c:150fff", "t2mi://#t2mi_pid=4095&t2mi_input=http://127.0.0.1:8001/-----:", "4095"),
+            ("4095 - c:150fff plp0", "t2mi://#t2mi_pid=4095&t2mi_plp=0&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp0"),
+            ("4095 - c:150fff plp1", "t2mi://#t2mi_pid=4095&t2mi_plp=1&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp1"),
+            ("4095 - c:150fff plp2", "t2mi://#t2mi_pid=4095&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp2"),
+            ("4095 - c:150fff plp3", "t2mi://#t2mi_pid=4095&t2mi_plp=3&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp3"),
+            ("4095 - c:150fff plp4", "t2mi://#t2mi_pid=4095&t2mi_plp=4&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp4"),
+            ("4095 - c:150fff plp5", "t2mi://#t2mi_pid=4095&t2mi_plp=5&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp5"),
+            ("4095 - c:150fff plp6", "t2mi://#t2mi_pid=4095&t2mi_plp=6&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp6"),
+            ("4095 - c:150fff plp7", "t2mi://#t2mi_pid=4095&t2mi_plp=7&t2mi_input=http://127.0.0.1:8001/-----:", "4095_plp7"),
             ("4096 - c:151000", "t2mi://#t2mi_pid=4096&t2mi_input=http://127.0.0.1:8001/-----:", "4096"),
             ("4096 - c:151000 plp2", "t2mi://#t2mi_pid=4096&t2mi_plp=2&t2mi_input=http://127.0.0.1:8001/-----:", "4096_plp2"),
             ("4097 - c:151001", "t2mi://#t2mi_pid=4097&t2mi_input=http://127.0.0.1:8001/-----:", "4097"),
@@ -358,6 +790,248 @@ class SatelliteAnalyzer(Screen):
         self.astra_analyze_screen = None
         self.abertis_analyze_screen = None
         self.container = None
+
+    def astraConfFunctions(self):
+        """ChoiceBox za Astra.conf funkcije"""
+        choices = [
+            ("Create blanc astra.conf", "create_conf"),
+            ("Add T2MI decap block", "add_t2mi_decap"),  # NOVO
+            ("Add Abertis block", "add_abertis_block"),  # NOVO
+            ("View astra.conf", "view_conf"),  # NOVO
+            ("Reboot sistem", "reboot_system")
+        ]
+        self.session.openWithCallback(
+            self.onAstraConfFunctionSelected,
+            ChoiceBox,
+            title=_("Astra.conf Functions"),
+            list=choices
+        )
+
+    def astraSmFunctions(self):
+        """ChoiceBox za Astra-SM funkcije"""
+        choices = [
+            ("Select Astra-SM Analyze option", "analyze_option"),
+            ("Select Astra analyze log file", "select_log"),
+            ("Select T2MI block from astra.conf", "select_t2mi_block"),
+            ("Clear astra-sm log", "clear_logs")
+        ]
+        self.session.openWithCallback(
+            self.onAstraSmFunctionSelected,
+            ChoiceBox,
+            title=_("Astra-SM Functions"),
+            list=choices
+        )
+
+    def abertisFunctions(self):
+        """ChoiceBox za Abertis funkcije"""
+        choices = [
+            ("Select Abertis PID", "select_pid"),
+            ("Select Abertis log file", "select_abertis_log"),
+            ("Select Abertis block from astra.conf", "select_abertis_block"),
+            ("Clear Abertis log", "clear_abertis_logs")
+        ]
+        self.session.openWithCallback(
+            self.onAbertisFunctionSelected,
+            ChoiceBox,
+            title=_("Abertis Functions"),
+            list=choices
+        )
+
+    def onAstraConfFunctionSelected(self, choice):
+        """Callback za Astra.conf funkcije"""
+        if choice is None:
+            return
+
+        function_id = choice[1]
+        if function_id == "create_conf":
+            self.createAstraConf()
+        elif function_id == "add_t2mi_decap":  # NOVO
+            self.addT2MIDecapBlock()
+        elif function_id == "add_abertis_block":  # NOVO
+            self.addAbertisBlock()
+        elif function_id == "view_conf":  # NOVO
+            self.viewAstraConf()
+        elif function_id == "reboot_system":
+            self.rebootSystem()
+
+    def onAstraSmFunctionSelected(self, choice):
+        """Callback za Astra-SM funkcije"""
+        if choice is None:
+            return
+            
+        function_id = choice[1]
+        if function_id == "analyze_option":
+            self.startAstraAnalyze()
+        elif function_id == "select_log":
+            self.selectAstraLogFile()
+        elif function_id == "select_t2mi_block":
+            self.selectT2MIBlock()
+        elif function_id == "clear_logs":
+            self.clearAstraLogs()
+
+    def onAbertisFunctionSelected(self, choice):
+        """Callback za Abertis funkcije"""
+        if choice is None:
+            return
+            
+        function_id = choice[1]
+        if function_id == "select_pid":
+            self.startAbertisAnalyze()
+        elif function_id == "select_abertis_log":
+            self.selectAbertisLogFile()
+        elif function_id == "select_abertis_block":
+            self.selectAbertisBlock()
+        elif function_id == "clear_abertis_logs":
+            self.clearAbertisLogs()
+
+    def rebootSystem(self):
+        """Reboot sistem"""
+        self.session.openWithCallback(
+            self.confirmReboot,
+            MessageBox,
+            _("Are you sure you want to reboot the system?"),
+            MessageBox.TYPE_YESNO
+        )
+
+    def addT2MIDecapBlock(self):
+        """Dodavanje T2MI decap bloka"""
+        self.session.open(T2MIDecapConfigScreen, self)
+
+    def addAbertisBlock(self):
+        """Dodavanje Abertis bloka (za sada placeholder)"""
+        self.session.open(MessageBox, _("Abertis block function will be implemented soon"), MessageBox.TYPE_INFO)
+
+    def viewAstraConf(self):
+        """Pregled astra.conf fajla - orijentisan na levu stranu"""
+        conf_path = "/etc/astra/astra.conf"
+        if os.path.exists(conf_path):
+            try:
+                with open(conf_path, "r") as f:
+                    content = f.read()
+
+                # Kreiraj custom screen za prikaz sa levom orijentacijom
+                self.session.open(AstraConfViewScreen, content)
+            except Exception as e:
+                self.session.open(MessageBox, _("Error reading astra.conf: ") + str(e), MessageBox.TYPE_ERROR)
+        else:
+            self.session.open(MessageBox, _("astra.conf not found!"), MessageBox.TYPE_ERROR)
+
+    def createAstraConf(self):
+        """Kreiranje osnovnog astra.conf fajla"""
+        try:
+            conf_path = "/etc/astra/astra.conf"
+            os.makedirs(os.path.dirname(conf_path), exist_ok=True)
+
+            # Osnovni template
+            basic_conf = """-- Astra configuration file
+    -- Generated by Ciefp Satellite Analyzer
+
+    -- Basic settings
+    dvb_scan = true
+    http_port = 9999
+
+    -- Add your T2MI and Abertis blocks below:
+
+    """
+            with open(conf_path, "w") as f:
+                f.write(basic_conf)
+
+            self.session.open(MessageBox, _("Basic astra.conf created!"), MessageBox.TYPE_INFO)
+
+        except Exception as e:
+            self.session.open(MessageBox, _("Error creating astra.conf: ") + str(e), MessageBox.TYPE_ERROR)
+
+    def confirmReboot(self, result):
+        """Potvrda za reboot"""
+        if result:
+            import os
+            os.system("reboot")
+
+    def selectAstraLogFile(self):
+        """Selektovanje Astra log fajla za T2MI"""
+        self.createBouquetWithType("t2mi")
+
+    def selectAbertisLogFile(self):
+        """Selektovanje Abertis log fajla"""
+        self.createBouquetWithType("abertis")
+
+    def createBouquetWithType(self, log_type):
+        """Kreiranje buketa sa određenim tipom"""
+        print(f"[SatelliteAnalyzer] Starting {log_type} bouquet creation")
+        log_dir = "/tmp/CiefpSatelliteAnalyzer"
+        if not os.path.exists(log_dir):
+            self.session.open(MessageBox, _("Log directory not found!"), MessageBox.TYPE_ERROR)
+            return
+
+        # Filtriraj log fajlove po tipu - NOVI NAZIVI
+        if log_type == "t2mi":
+            pattern = "t2mi_*.log"
+        else:  # abertis
+            pattern = "abertis_*.log"
+
+        import glob
+        log_files = glob.glob(os.path.join(log_dir, pattern))
+        logs = [os.path.basename(f) for f in log_files]
+
+        if not logs:
+            self.session.open(MessageBox, _(f"No {log_type} log files found!"), MessageBox.TYPE_ERROR)
+            return
+
+        choices = []
+        for log in sorted(logs):
+            # Prikaži lepši naziv u ChoiceBox-u
+            display_name = log.replace('.log', '')
+            choices.append((display_name, (log, log_type)))
+
+        self.session.openWithCallback(
+            self.logSelected,
+            ChoiceBox,
+            title=f"Select {log_type.upper()} analyze log file",
+            list=choices
+        )
+
+    def selectT2MIBlock(self):
+        """Selektovanje T2MI blocka iz astra.conf"""
+        self.session.open(MessageBox, _("Please use 'Select Astra analyze log file' to select T2MI blocks"), MessageBox.TYPE_INFO)
+
+    def selectAbertisBlock(self):
+        """Selektovanje Abertis blocka iz astra.conf"""
+        self.session.open(MessageBox, _("Please use 'Select Abertis log file' to select Abertis blocks"), MessageBox.TYPE_INFO)
+
+    def clearAstraLogs(self):
+        """Brisanje T2MI logova"""
+        self.clearLogs("t2mi")
+
+    def clearAbertisLogs(self):
+        """Brisanje Abertis logova"""
+        self.clearLogs("abertis")
+
+    def clearLogs(self, log_type):
+        """Opšta funkcija za brisanje logova"""
+        import glob
+        log_dir = "/tmp/CiefpSatelliteAnalyzer"
+
+        # Koristimo nove nazive
+        if log_type == "t2mi":
+            pattern = "t2mi_*.log"
+        else:  # abertis
+            pattern = "abertis_*.log"
+
+        log_files = glob.glob(os.path.join(log_dir, pattern))
+        if not log_files:
+            self.session.open(MessageBox, _(f"No {log_type} log files found to delete"), MessageBox.TYPE_INFO)
+            return
+
+        deleted_count = 0
+        for log_file in log_files:
+            try:
+                os.remove(log_file)
+                deleted_count += 1
+                print(f"[SatelliteAnalyzer] Deleted: {os.path.basename(log_file)}")
+            except Exception as e:
+                print(f"Error deleting {log_file}: {e}")
+
+        self.session.open(MessageBox, _(f"Deleted {deleted_count} {log_type} log files"), MessageBox.TYPE_INFO)
 
     def close(self):
         print("[SatelliteAnalyzer] Initiating close")
@@ -711,7 +1385,7 @@ class SatelliteAnalyzer(Screen):
         return known.get(caid, None)
 
     def getFec(self, fec):
-        return {0: "Auto", 1: "1/2", 2: "2/3", 3: "3/4", 4: "4/5", 5: "5/6", 7: "7/8", 8: "8/9", 9: "9/10"}.get(fec, "N/A")
+        return {0: "Auto", 1: "1/2", 2: "2/3", 3: "3/4", 4: "5/6", 5: "7/8", 6: "8/9", 7: "3/5", 8: "4/5", 9: "9/10"}.get(fec, "N/A")
 
     def getModulation(self, mod):
         return {0: "Auto", 1: "QPSK", 2: "8PSK", 3: "64QAM", 4: "16APSK", 5: "32APSK"}.get(mod, "N/A")
@@ -1133,27 +1807,36 @@ class SatelliteAnalyzer(Screen):
         self.processSelectedLog(log_file, block_ref)
 
     def processSelectedLog(self, log_file, block_ref):
-        import re, os
-        from urllib.parse import quote, unquote
+        import re, os, urllib
         from enigma import eDVBDB
+
         log_path = os.path.join("/tmp/CiefpSatelliteAnalyzer", log_file)
         if not os.path.exists(log_path):
             self.session.open(MessageBox, _("Selected log file not found!"), MessageBox.TYPE_ERROR)
             return
+
         blocks = self.parse_astra_conf()
-        log_type = "abertis" if "abertis_analyze" in log_file else "t2mi"
+
+        # Detect type by filename
+        if log_file.startswith("t2mi_"):
+            log_type = "t2mi"
+        elif log_file.startswith("abertis_"):
+            log_type = "abertis"
+        else:
+            log_type = "abertis" if "abertis" in log_file else "t2mi"
+
+        # Validate block
         if block_ref not in blocks[log_type] or not blocks[log_type][block_ref]["output"]:
-            self.session.open(MessageBox, _(f"Selected {log_type} block not found in astra.conf!"),
-                              MessageBox.TYPE_ERROR)
+            self.session.open(MessageBox, _(f"Selected {log_type} block not found in astra.conf!"), MessageBox.TYPE_ERROR)
             return
+
         matched = blocks[log_type][block_ref]
         base_url = matched["output"]
         marker_pid = matched["pid"]
-        print(f"[SatelliteAnalyzer] Using block {block_ref}: pid={marker_pid}, url={base_url}")
+        provider_name = matched["name"]
 
-        # Dohvati informaciju o satelitu i frekvenciji
+        # Detect satellite position
         satellite = "Unknown"
-        frequency = 0
         service = self.session.nav.getCurrentService()
         if service:
             frontendInfo = service.frontendInfo()
@@ -1163,171 +1846,127 @@ class SatelliteAnalyzer(Screen):
                     try:
                         orbital_pos = frontendData.get("orbital_position", 0)
                         satellite = self.formatOrbitalPos(orbital_pos)
-                        frequency = frontendData.get("frequency", 0) // 1000  # Frekvencija u MHz
-                    except Exception as e:
-                        print(f"[SatelliteAnalyzer] Error getting satellite info: {str(e)}")
-                        satellite = "Unknown"
-                        frequency = 0
+                    except:
+                        pass
 
-        # Parsiraj log fajl i prikupi kanale
-        new_channels = []
-        sid = service = provider = None
+        # Parse log file into channels
+        tv_channels = []
+        radio_channels = []
+        sid = name = provider = None
+
         with open(log_path, "r") as f:
             for line in f:
                 if 'sid:' in line:
-                    sid = re.search(r'sid:\s*(\d+)', line)
-                    if sid:
-                        sid = sid.group(1)
+                    sid_match = re.search(r'sid:\s*(\d+)', line)
+                    if sid_match:
+                        sid = sid_match.group(1)
+
                 elif 'Service:' in line:
-                    service = re.search(r'Service:\s*(.+)', line)
-                    if service:
-                        service = service.group(1).strip()
-                elif 'Provider:' in line and sid and service:
-                    provider_match = re.search(r'Provider:\s*(.*)', line)
-                    provider = provider_match.group(1).strip() if provider_match and provider_match.group(
-                        1).strip() else "RTVE"
-                    # Proširena heuristika za detekciju radio kanala
-                    radio_keywords = ["Radio", "RNE", "FM", "AM", "Cadena", "SER", "Onda Cero", "COPE"]
-                    is_radio = any(keyword in service for keyword in radio_keywords)
-                    channel_type = "RADIO" if is_radio else "TV"
-                    # Loguj kanale koji nisu jasno klasifikovani kao radio
-                    if not is_radio and not ("TV" in service or "HD" in service):
-                        print(
-                            f"[SatelliteAnalyzer] Warning: Channel '{service}' classified as TV by default (no clear radio indicator)")
-                    new_channels.append({
-                        'sid': int(sid),
-                        'name': service,
-                        'provider': provider,
-                        'type': channel_type,
-                        'pid': marker_pid,
-                        'url': base_url
-                    })
-                    sid = service = provider = None
+                    svc = re.search(r'Service:\s*(.+)', line)
+                    if svc:
+                        name = svc.group(1).strip()
+
+                elif 'Provider:' in line and sid and name:
+                    prov = re.search(r'Provider:\s*(.*)', line)
+                    provider = prov.group(1).strip() if prov else "Unknown"
+
+                    radio_keywords = ["RADIO", "FM", "RNE", "COPE", "SER", "ONDA", "MELODIA"]
+                    is_radio = any(k in name.upper() for k in radio_keywords)
+                    ch_type = "RADIO" if is_radio else "TV"
+
+                    channel_data = {
+                        "sid": int(sid),
+                        "name": name,
+                        "provider": provider,
+                        "type": ch_type,
+                        "pid": marker_pid,
+                        "url": base_url
+                    }
+
+                    if ch_type == "TV":
+                        tv_channels.append(channel_data)
+                    else:
+                        radio_channels.append(channel_data)
+
+                    sid = name = provider = None
+
+        # Sort channels: TV first, then Radio
+        new_channels = tv_channels + radio_channels
 
         if not new_channels:
             self.session.open(MessageBox, _("No channels found in selected log!"), MessageBox.TYPE_ERROR)
             return
 
-        # Učitaj postojeće kanale iz buketa
-        bouquet_path = '/etc/enigma2/userbouquet.buket_t2mi.tv' if log_type == "t2mi" else '/etc/enigma2/userbouquet.buket_abertis.tv'
-        existing_channels = []
-        existing_content = ""
-        if os.path.exists(bouquet_path):
-            with open(bouquet_path, 'r') as f:
-                existing_content = f.read()
-            # Parsiraj postojeće kanale
-            lines = existing_content.splitlines()
-            i = 0
-            while i < len(lines):
-                line = lines[i]
-                if '#SERVICE' in line and '#####' not in line:
-                    # Fleksibilniji regex za rukovanje varijacijama u formatu
-                    service_match = re.search(
-                        r'#SERVICE 1:0:([12]):([0-9A-F]+):([0-9A-F]+):([0-9A-F]+):0:0:0:0:(.*?):(.+)', line)
-                    if service_match:
-                        service_type, sid_hex, tsid, onid, url, name = service_match.groups()
-                        # Očisti višestruke PID-ove i tip iz imena (npr. (TV) La 1 HD (2025) -> La 1 HD)
-                        clean_name = re.sub(r'^\s*\((?:TV|RADIO)\)\s*|\s*\(\d+\)(?:\s*\(\d+\))*\s*$', '', name).strip()
-                        # Pokušaj izvući PID iz imena kanala
-                        pid_match = re.search(r'\((\d+)\)$', name)
-                        pid = pid_match.group(1) if pid_match else "Unknown"
-                        # Pokušaj izvući tip iz imena kanala ili na osnovu service_type
-                        type_match = re.search(r'^\((TV|RADIO)\)\s*', name)
-                        channel_type = type_match.group(1) if type_match else ("RADIO" if service_type == "2" else "TV")
-                        # Dekodiraj URL kako bismo izbegli višestruko enkodiranje
-                        url = unquote(url)
-                        existing_channels.append({
-                            'sid': int(sid_hex, 16),
-                            'tsid': tsid,
-                            'onid': onid,
-                            'url': url,
-                            'name': clean_name,
-                            'type': channel_type,
-                            'pid': pid
-                        })
-                    else:
-                        print(f"[SatelliteAnalyzer] Warning: Skipping invalid SERVICE line: {line}")
-                i += 1
+        # Bouquet path + marker template
+        if log_type == "t2mi":
+            bouquet_path = "/etc/enigma2/userbouquet.buket_t2mi.tv"
+            marker_template = ":: T2Mi :: {provider} :: pid {pid} :: Satellite {satellite} ::"
+        else:
+            bouquet_path = "/etc/enigma2/userbouquet.buket_abertis.tv"
+            marker_template = "##### Abertis PID {pid} #####"
 
-        # Kombinuj nove kanale sa postojećim, ažuriraj tip ako je potrebno
-        all_channels = []
-        existing_keys = {(ch['sid'], ch['tsid'], ch['onid'], ch['url'], ch['name']) for ch in existing_channels}
-        for ch in new_channels:
-            key = (ch['sid'], format(frequency, 'X') if frequency else '2DE3', format(int(ch['pid']), 'X'), ch['url'],
-                   ch['name'])
-            # Ako kanal već postoji, ažuriraj njegov tip i PID
-            for existing_ch in existing_channels:
-                if (existing_ch['sid'], existing_ch['tsid'], existing_ch['onid'], existing_ch['url'],
-                    existing_ch['name']) == key:
-                    existing_ch['type'] = ch['type']  # Ažuriraj tip (TV/RADIO)
-                    existing_ch['pid'] = ch['pid']  # Ažuriraj PID ako je potrebno
-                    break
-            else:
-                # Ako kanal nije pronađen, dodaj ga kao nov
-                all_channels.append({
-                    'sid': ch['sid'],
-                    'tsid': format(frequency, 'X') if frequency else '2DE3',
-                    'onid': format(int(ch['pid']), 'X'),
-                    'url': ch['url'],
-                    'name': ch['name'],
-                    'type': ch['type'],
-                    'pid': ch['pid']
-                })
-        # Dodaj sve postojeće kanale u all_channels
-        all_channels.extend(existing_channels)
+        # URL correction function
+        def encode_abertis_url(url):
+            url = url.replace(":", "%3a")
+            url = url.replace("%3a//", "%3a//")  # keep //
+            return url
 
-        # Sortiraj kanale po PID-u, pa po SID-u radi konzistentnosti
-        all_channels.sort(key=lambda x: (x['pid'], x['sid']))
+        marker_text = marker_template.format(
+            pid=marker_pid,
+            provider=provider_name,
+            satellite=satellite
+        )
 
-        # Generiši sadržaj buketa grupisan po PID-ovima
-        tsid = format(frequency, 'X') if frequency else '2DE3'  # TSID je frekvencija u hex
-        namespace = '300000'
-        content = '#NAME ##( Abertis DTT Sat )##\n'
+        # --- FIX: Add line break BEFORE append if file is not empty ---
+        if os.path.exists(bouquet_path) and os.path.getsize(bouquet_path) > 0:
+            if os.path.getsize(bouquet_path) > 0:
+                last = ""
+                with open(bouquet_path, "rb") as r:
+                    r.seek(-1, os.SEEK_END)
+                    last = r.read(1)
 
-        # Grupisanje kanala po PID-u
-        from collections import defaultdict
-        channels_by_pid = defaultdict(list)
-        for ch in all_channels:
-            channels_by_pid[ch['pid']].append(ch)
+                # Dodaj novi red SAMO ako poslednja linija NE završava sa \n
+                if last != b'\n':
+                    with open(bouquet_path, "a") as f:
+                        f.write("\n")
 
-        # Generiši linije za svaki PID
-        for pid in sorted(channels_by_pid.keys()):
-            if pid == "Unknown":
-                continue  # Preskoči kanale bez poznatog PID-a
-            content += f'#SERVICE 1:64:{pid}:0:0:0:0:0:0:0::##### Abertis PID {pid} #####\n'
-            content += f'#DESCRIPTION ##### Abertis PID {pid} #####\n'
-            for ch in channels_by_pid[pid]:
-                sid_hex = format(ch['sid'], 'X')
-                # Koristi 1 za TV, 2 za RADIO
-                service_type = "2" if ch["type"] == "RADIO" else "1"
-                service_line = f'#SERVICE 1:0:{service_type}:{sid_hex}:{ch["tsid"]}:{ch["onid"]}:0:0:0:0:{quote(unquote(ch["url"]), safe="/")}:({ch["type"]}) {ch["name"]} ({ch["pid"]})\n'
-                desc_line = f'#DESCRIPTION ({ch["type"]}) {ch["name"]} ({ch["pid"]})\n'
-                content += service_line + desc_line
+        # --- APPEND marker + channels ---
+        with open(bouquet_path, "a") as f:
 
-        # Upis u buket
-        with open(bouquet_path, 'w') as f:
-            f.write(content)
-        print(f"[SatelliteAnalyzer] Created/updated {log_type} bouquet file")
+            # Marker
+            f.write(f'#SERVICE 1:64:1F:0:0:0:0:0:0:0::{marker_text}\n')
+            f.write(f'#DESCRIPTION {marker_text}\n')
 
-        # Ažuriraj bouquets.tv
-        bouquets_tv_path = '/etc/enigma2/bouquets.tv'
-        bouquet_name = 'userbouquet.buket_abertis.tv' if log_type == "abertis" else 'userbouquet.buket_t2mi.tv'
-        add_line = f'#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "{bouquet_name}" ORDER BY bouquet\n'
-        if os.path.exists(bouquets_tv_path):
-            with open(bouquets_tv_path, 'r') as f:
-                bouquets_data = f.read()
-            if add_line not in bouquets_data:
-                with open(bouquets_tv_path, 'a') as f:
-                    f.write(add_line)
-                print(f"[SatelliteAnalyzer] Added {log_type} bouquet reference to bouquets.tv")
+            # Channels for this PID
+            for ch in new_channels:
+                service_type = "1" if ch["type"] == "TV" else "2"
+                url_enc = encode_abertis_url(ch["url"])
+
+                # Za T2MI kanale koristimo samo ime kanala, bez (TV) i (PID)
+                if log_type == "t2mi":
+                    f.write(
+                        f'#SERVICE 1:0:{service_type}:{ch["sid"]:X}:3157:{int(ch["pid"]):X}:0:0:0:0:{url_enc}:{ch["name"]}\n'
+                    )
+                    f.write(
+                        f'#DESCRIPTION {ch["name"]}\n'
+                    )
+                # Za Abertis kanale zadržavamo originalni format
+                else:
+                    f.write(
+                        f'#SERVICE 1:0:{service_type}:{ch["sid"]:X}:3157:{int(ch["pid"]):X}:0:0:0:0:{url_enc}:({ch["type"]}) {ch["name"]} ({ch["pid"]})\n'
+                    )
+                    f.write(
+                        f'#DESCRIPTION ({ch["type"]}) {ch["name"]} ({ch["pid"]})\n'
+                    )
 
         # Osveži bukete
         eDVBDB.getInstance().reloadBouquets()
         self.session.openWithCallback(
-            lambda x: None,  # Callback koji ne radi ništa
+            lambda x: None,
             MessageBox,
-            _(f"{log_type.capitalize()} bouquet created/updated and reloaded successfully!"),
+            _(f"{log_type.upper()} bouquet created/updated and reloaded successfully!"),
             MessageBox.TYPE_INFO,
-            timeout=5,
+            timeout=10,
             default=True
         )
+
