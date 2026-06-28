@@ -26,24 +26,24 @@ import re
 
 class AstraAnalyzeScreen(Screen):
     skin = """
-    <screen name="AstraAnalyzeScreen" position="center,center" size="1800,900" title="..:: Astra-SM Analyze Results ::..">
+    <screen name="AstraAnalyzeScreen" position="center,center" size="1920,1080" title="..:: Astra-SM Analyze Results ::..">
         <!-- Pozadina -->
-        <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <eLabel position="0,0" size="1520,1080" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
-        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background2.png" position="1400,0" size="400,500" />
+        <eLabel position="1520,500" size="400,1080" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background2.png" position="1520,0" size="400,500" />
         <!-- Rezultati analize -->
-        <widget name="analyze_results" position="20,20" size="1360,880" 
+        <widget name="analyze_results" position="20,20" size="1480,1060" 
                 font="Console;20" transparent="1" foregroundColor="white" />
         <!-- Naslov -->
-        <widget source="Title" render="Label" position="1400,550" size="400,50" 
+        <widget source="Title" render="Label" position="1520,550" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
          <!-- Dugmad -->
-        <widget name="key_red" position="1440,650" size="320,40" 
+        <widget name="key_red" position="1560,650" size="320,40" 
                 backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_green" position="1440,720" size="320,40" 
+        <widget name="key_green" position="1560,720" size="320,40" 
                 backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_yellow" position="1440,790" size="320,40" 
+        <widget name="key_yellow" position="1560,790" size="320,40" 
                 backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" /> 
     </screen>
     """
@@ -156,24 +156,24 @@ class AstraAnalyzeScreen(Screen):
 
 class AbertisAnalyzeScreen(Screen):
     skin = """
-    <screen name="AbertisAnalyzeScreen" position="center,center" size="1800,900" title="..:: Abertis Analyze Results ::..">
+    <screen name="AbertisAnalyzeScreen" position="center,center" size="1920,1080" title="..:: Abertis Analyze Results ::..">
         <!-- Pozadina -->
-        <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <eLabel position="0,0" size="1520,1080" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
-        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background3.png" position="1400,0" size="400,500" />
+        <eLabel position="1520,500" size="400,1080" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background3.png" position="1520,0" size="400,500" />
         <!-- Rezultati analize -->
-        <widget name="analyze_results" position="20,20" size="1360,880" 
+        <widget name="analyze_results" position="20,20" size="1480,1060" 
                 font="Console;20" transparent="1" foregroundColor="white" />
         <!-- Naslov -->
-        <widget source="Title" render="Label" position="1400,550" size="400,50" 
+        <widget source="Title" render="Label" position="1520,550" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
          <!-- Dugmad -->
-        <widget name="key_red" position="1440,650" size="320,40" 
+        <widget name="key_red" position="1560,650" size="320,40" 
                 backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_green" position="1440,720" size="320,40" 
+        <widget name="key_green" position="1560,720" size="320,40" 
                 backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_yellow" position="1440,790" size="320,40" 
+        <widget name="key_yellow" position="1560,790" size="320,40" 
                 backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" /> 
     </screen>
     """
@@ -589,27 +589,27 @@ class T2MIDecapConfigScreen(Screen):
 
 class AstraConfViewScreen(Screen):
     skin = """
-    <screen name="AstraConfViewScreen" position="center,center" size="1800,900" title="..:: astra.conf Viewer ::..">
+    <screen name="AstraConfViewScreen" position="center,center" size="1920,1080" title="..:: astra.conf Viewer ::..">
         <!-- Pozadina -->
-        <eLabel position="0,0" size="1400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <eLabel position="0,0" size="1520,1080" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
-        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1400,0" size="400,500" />
+        <eLabel position="1520,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1520,0" size="400,500" />
 
         <!-- Sadržaj astra.conf - ORIJENTISAN NA LEVO -->
-        <widget name="conf_content" position="20,20" size="1360,860" 
-                font="Console;18" transparent="1" foregroundColor="white" />
+        <widget name="conf_content" position="20,20" size="1480,1080" 
+                font="Console;22" transparent="1" foregroundColor="white" />
 
         <!-- Naslov -->
-        <widget source="Title" render="Label" position="1400,520" size="400,50" 
+        <widget source="Title" render="Label" position="1520,520" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
 
         <!-- Dugmad -->
-        <widget name="key_red" position="1440,600" size="320,40" 
+        <widget name="key_red" position="1560,600" size="320,40" 
                 backgroundColor="red" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
-        <widget name="key_green" position="1440,660" size="320,40" 
+        <widget name="key_green" position="1560,660" size="320,40" 
                 backgroundColor="green" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
-        <widget name="key_yellow" position="1440,720" size="320,40" 
+        <widget name="key_yellow" position="1560,720" size="320,40" 
                 backgroundColor="yellow" font="Bold;24" foregroundColor="#000000" halign="center" valign="center" />
     </screen>
     """
@@ -2507,39 +2507,39 @@ class ConfirmationPreviewScreen(Screen):
 
 class SatelliteAnalyzer(Screen):
     skin = """
-    <screen name="SatelliteAnalyzer" position="center,center" size="1800,900" title="..:: Ciefp Satellite Analyzer ::..">
+    <screen name="SatelliteAnalyzer" position="center,center" size="1920,1080" title="..:: Ciefp Satellite Analyzer ::.." backgroundColor="#011a2e">
         <!-- Pozadina desno -->
-        <eLabel position="1400,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
+        <eLabel position="1520,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Logo (400x500) -->
-        <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1400,0" size="400,500" />
+        <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1520,0" size="400,500" />
         <!-- Naslov -->
-        <widget source="Title" render="Label" position="1400,520" size="400,50" 
+        <widget source="Title" render="Label" position="1520,520" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
         <!-- Vrijeme -->
-        <widget name="time" position="1400,570" size="400,40" 
+        <widget name="time" position="1520,570" size="400,40" 
                 font="Regular;24" halign="center" valign="center" foregroundColor="#BBBBBB" backgroundColor="#0D1B36" />
          <!-- Dugmad -->
-        <widget name="key_red" position="1440,620" size="320,40" 
+        <widget name="key_red" position="1560,620" size="320,40" 
                 backgroundColor="red" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_green" position="1440,670" size="320,40" 
+        <widget name="key_green" position="1560,670" size="320,40" 
                 backgroundColor="green" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
-        <widget name="key_yellow" position="1440,720" size="320,40" 
+        <widget name="key_yellow" position="1560,720" size="320,40" 
                 backgroundColor="yellow" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />  
-        <widget name="key_blue" position="1440,770" size="320,40" 
+        <widget name="key_blue" position="1560,770" size="320,40" 
                 backgroundColor="blue" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />      
-        <widget name="key_white" position="1440,820" size="320,40" 
+        <widget name="key_white" position="1560,820" size="320,40" 
                 backgroundColor="white" font="Bold;24" foregroundColor="#000000"  halign="center" valign="center" />
         <!-- LEVO: Osnovni info -->
-        <widget name="info_left" position="20,20" size="680,800" 
+        <widget name="info_left" position="50,50" size="680,900" 
                 font="Console;24" transparent="1" />
         <!-- SREDINA: Kodiranje, Signal, SI/TS/ONID -->
-        <widget name="info_center" position="720,20" size="680,800" 
+        <widget name="info_center" position="800,50" size="600,900" 
                 font="Console;24" transparent="1" />
         <!-- DONJI DEO: SNR i AGC TRAKE -->
-        <widget name="snr_label" position="20,820" size="100,24" font="Regular;20" halign="left" valign="center" foregroundColor="white" />
-        <widget name="snr_bar" position="120,820" size="1180,24" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/icon_snr.png" borderWidth="2" borderColor="green" />
-        <widget name="agc_label" position="20,864" size="100,24" font="Regular;20" halign="left" valign="center" foregroundColor="white" />
-        <widget name="agc_bar" position="120,864" size="1180,24" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/icon_agc.png" borderWidth="2" borderColor="green" />
+        <widget name="snr_label" position="50,950" size="100,30" font="Regular;20" halign="left" valign="center" foregroundColor="white" />
+        <widget name="snr_bar" position="150,950" size="1180,30" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/icon_snr.png" borderWidth="2" borderColor="green" />
+        <widget name="agc_label" position="50,994" size="100,30" font="Regular;20" halign="left" valign="center" foregroundColor="white" />
+        <widget name="agc_bar" position="150,994" size="1180,30" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/icon_agc.png" borderWidth="2" borderColor="green" />
     </screen>
     """
 
@@ -2621,6 +2621,7 @@ class SatelliteAnalyzer(Screen):
         self.astra_analyze_screen = None
         self.abertis_analyze_screen = None
         self.container = None
+        self._t2mi_satellite_cache = {}  # DODAJ OVO
 
     def astraConfFunctions(self):
         """ChoiceBox za Astra.conf funkcije"""
@@ -3541,58 +3542,119 @@ class SatelliteAnalyzer(Screen):
         if not os.path.exists(conf_path):
             print(f"[parse_astra_conf] File not found: {conf_path}")
             return {"t2mi": {}, "abertis": {}}
+
         with open(conf_path, "r") as f:
             conf_content = f.read()
-        
-        # T2MI blokovi
-        t2mi_blocks = re.findall(
-            r'(\w+)\s*=\s*make_t2mi_decap\(\{([^}]*)\}\)',
-            conf_content, re.DOTALL | re.IGNORECASE
-        )
-        print(f"[parse_astra_conf] Found {len(t2mi_blocks)} t2mi_decap blocks")
-        result = {"t2mi": {}, "abertis": {}}
-        for var_name, body in t2mi_blocks:
-            pid = re.search(r'pid\s*=\s*(\d+)', body)
-            name = re.search(r'name\s*=\s*"([^"]+)"', body)
-            result["t2mi"][var_name] = {
-                "pid": pid.group(1) if pid else None,
-                "name": name.group(1) if name else var_name,
-                "output": None
-            }
-            print(f"[parse_astra_conf] Added T2MI block var={var_name} pid={result['t2mi'][var_name]['pid']} name={result['t2mi'][var_name]['name']}")
 
-        # Abertis i T2MI channel blokovi
+        lines = conf_content.split('\n')
+        current_satellite = "Unknown"
+        result = {"t2mi": {}, "abertis": {}}
+
+        # Prvi prolaz: Pronađi sve T2MI blokove i njihove satelite
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+
+            # Detekcija satelitskih komentara
+            if line.startswith('--'):
+                sat_match = re.search(r'([\d.]+)\s*([EW])', line, re.IGNORECASE)
+                if sat_match:
+                    num = sat_match.group(1)
+                    direction = sat_match.group(2).upper()
+                    comment_text = line[2:].strip()
+                    if len(comment_text.split()) > 1:
+                        current_satellite = comment_text
+                    else:
+                        current_satellite = f"{num}{direction}"
+                    print(f"[parse_astra_conf] Detected satellite: {current_satellite}")
+                    i += 1
+                    continue
+
+            # Detekcija T2MI blokova
+            t2mi_match = re.search(
+                r'(\w+)\s*=\s*make_t2mi_decap\(\{',
+                line, re.IGNORECASE
+            )
+            if t2mi_match:
+                var_name = t2mi_match.group(1)
+                block_start = i
+                brace_count = 0
+                found_open = False
+                for j in range(i, len(lines)):
+                    for char in lines[j]:
+                        if char == '{':
+                            brace_count += 1
+                            found_open = True
+                        elif char == '}':
+                            brace_count -= 1
+                    if found_open and brace_count == 0:
+                        block_end = j
+                        break
+                else:
+                    block_end = i
+
+                if block_end > block_start:
+                    block_body = ''.join(lines[block_start:block_end + 1])
+                    pid_match = re.search(r'pid\s*=\s*(\d+)', block_body, re.IGNORECASE)
+                    name_match = re.search(r'name\s*=\s*"([^"]+)"', block_body, re.IGNORECASE)
+
+                    result["t2mi"][var_name] = {
+                        'pid': pid_match.group(1) if pid_match else None,
+                        'name': name_match.group(1) if name_match else var_name,
+                        'satellite': current_satellite,
+                        'output': None
+                    }
+                    print(f"[parse_astra_conf] Found T2MI: {var_name} (sat: {current_satellite})")
+                    i = block_end
+            i += 1
+
+        # Drugi prolaz: Pronađi channel blokove
         channel_blocks = re.findall(
             r'make_channel\(\{(.*?)\}\)',
             conf_content, re.DOTALL | re.IGNORECASE
         )
-        print(f"[parse_astra_conf] Found {len(channel_blocks)} make_channel blocks")
+
         for body in channel_blocks:
             name_match = re.search(r'name\s*=\s*"([^"]+)"', body)
             input_match = re.search(r'input\s*=\s*\{[^"]*"([^"]+)"', body, re.DOTALL)
             output_match = re.search(r'output\s*=\s*\{[^"]*"([^"]+)"', body, re.DOTALL)
             transform_match = re.search(r'transform\s*=\s*\{\{[^}]*format\s*=\s*"pipe"', body, re.DOTALL)
-            is_abertis = transform_match and "abertis" in output_match.group(1).lower() if output_match and transform_match else False
+
             name = name_match.group(1) if name_match else "Unknown"
+
+            # Detekcija Abertis blokova
+            is_abertis = False
+            if transform_match and output_match:
+                # Proveri da li je Abertis (sadrži abertis u outputu ili transform komandi)
+                if "abertis" in output_match.group(1).lower() or "abertis" in body.lower():
+                    is_abertis = True
+
             if input_match and output_match:
-                ref = input_match.group(1).split("/")[-1].replace(":", "")
+                input_url = input_match.group(1)
                 output_url = output_match.group(1)
+
                 if is_abertis:
+                    # Abertis - hardkodirani satelit 30.0W
                     pid_match = re.search(r'pid(\d+)', output_url)
                     pid = pid_match.group(1) if pid_match else None
+                    # Izvuci ref iz input URL-a
+                    ref = input_url.split("/")[-1].replace(":", "") if "/" in input_url else input_url
                     result["abertis"][ref] = {
                         "pid": pid,
                         "name": name,
-                        "output": output_url
+                        "output": output_url,
+                        "satellite": "Hispasat 30.0W"  # HARDCORDIRANO
                     }
-                    print(f"[parse_astra_conf] Added Abertis block ref={ref} pid={pid} name={name} -> {output_url}")
+                    print(f"[parse_astra_conf] Added Abertis: {name} (sat: Hispasat 30.0W)")
                 else:
-                    for t2mi_ref, t2mi_data in result["t2mi"].items():
-                        if t2mi_ref in input_match.group(1):
-                            t2mi_data["output"] = output_url
+                    # T2MI - poveži sa postojećim blokovima
+                    for t2mi_ref in list(result["t2mi"].keys()):
+                        if t2mi_ref in input_url:
+                            result["t2mi"][t2mi_ref]["output"] = output_url
                             print(f"[parse_astra_conf] Linked T2MI {t2mi_ref} -> {output_url}")
-            else:
-                print(f"[parse_astra_conf] Found input but no output in block: {body[:50]}...")
+                            break
+
+        print(f"[parse_astra_conf] Final: {len(result['t2mi'])} T2MI, {len(result['abertis'])} Abertis blocks")
         return result
 
     def createBouquet(self):
@@ -3629,7 +3691,9 @@ class SatelliteAnalyzer(Screen):
         choices = []
         for ref, data in blocks[log_type.lower()].items():
             if data["output"]:
-                label = f"{data['name']} (pid {data['pid']}) -> {data['output']}"
+                satellite = data.get("satellite", "Unknown")
+                # Za Abertis prikazujemo satelit, za T2MI isto
+                label = f"{satellite} - {data['name']} (pid {data['pid']}) -> {data['output']}"
                 choices.append((label, ref))
         if not choices:
             self.session.open(MessageBox, _(f"No usable {log_type} blocks with output found!"), MessageBox.TYPE_ERROR)
