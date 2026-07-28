@@ -31,7 +31,7 @@ class AstraAnalyzeScreen(Screen):
         <eLabel position="0,0" size="1520,1080" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
         <eLabel position="1520,500" size="400,1080" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background2.png" position="1520,0" size="400,500" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/analyzer2.png" position="1520,0" size="400,500" />
         <!-- Rezultati analize -->
         <widget name="analyze_results" position="20,20" size="1480,1060" 
                 font="Console;20" transparent="1" foregroundColor="white" />
@@ -161,7 +161,7 @@ class AbertisAnalyzeScreen(Screen):
         <eLabel position="0,0" size="1520,1080" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
         <eLabel position="1520,500" size="400,1080" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background3.png" position="1520,0" size="400,500" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/analyzer3.png" position="1520,0" size="400,500" />
         <!-- Rezultati analize -->
         <widget name="analyze_results" position="20,20" size="1480,1060" 
                 font="Console;20" transparent="1" foregroundColor="white" />
@@ -594,7 +594,7 @@ class AstraConfViewScreen(Screen):
         <eLabel position="0,0" size="1520,1080" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Pozadina desno -->
         <eLabel position="1520,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
-        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1520,0" size="400,500" />
+        <widget name="background2" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/analyzer1.png" position="1520,0" size="400,500" />
 
         <!-- Sadržaj astra.conf - ORIJENTISAN NA LEVO -->
         <widget name="conf_content" position="20,20" size="1480,1080" 
@@ -2511,7 +2511,7 @@ class SatelliteAnalyzer(Screen):
         <!-- Pozadina desno -->
         <eLabel position="1520,500" size="400,900" backgroundColor="#0D1B36" zPosition="-1" />
         <!-- Logo (400x500) -->
-        <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/background.png" position="1520,0" size="400,500" />
+        <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpSatelliteAnalyzer/analyzer1.png" position="1520,0" size="400,500" />
         <!-- Naslov -->
         <widget source="Title" render="Label" position="1520,520" size="400,50" 
                 font="Regular;30" halign="center" valign="center" foregroundColor="white" backgroundColor="#0D1B36" />
